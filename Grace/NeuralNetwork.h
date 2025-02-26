@@ -34,8 +34,8 @@ void freeNeuralNetwork(NeuralNetwork nn);
 
 void train(NeuralNetwork nn, Matrix trainingData , int batchSize);
 void saveState(NeuralNetwork nn);
-double computeAccuracy(NeuralNetwork nn);
-double computeAverageLoss(NeuralNetwork nn);
+double computeAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
+double computeAverageLoss(NeuralNetwork nn, Matrix trainingData);
 
 
 #endif // NN_H

@@ -29,6 +29,13 @@ double reluDerivative(double x);
 double relu(double x);
 double sigmoid(double x);
 void updateWeightsAndBiases(NeuralNetwork nn, int batchSize);
+double computeAverageLoss(NeuralNetwork nn, Matrix trainingData);
+double loss(double output, double expectedOutput, int lf);
+double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf);
+double CCEloss(Matrix predictions, Matrix labels);
+double computeAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
+double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
+double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
 
 
 NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
@@ -387,6 +394,142 @@ double MSElossDerivative(double output, double expectedOutput) {
     return error;
 }
 
+
+
+
+double computeAverageLoss(NeuralNetwork nn, Matrix trainingData) {
+    int numSamples = trainingData.rows;
+    double totalLoss = 0.0;
+    
+    for (int i = 0; i < numSamples; i++) {
+        // Split input and expected output
+        Matrix input = getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn.numOutputs);
+        Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn.numOutputs, 1, nn.numOutputs);
+        
+        // Forward pass
+        forward(nn, input);
+        Matrix prediction = nn.activations[nn.layerCount - 1];
+        
+        if(nn.numOutputs>1) {
+            totalLoss+=multipleOutputLoss(prediction, expected, nn.lossFunction);
+        }else {
+            // Calculate loss for this example
+            for (int j = 0; j < nn.numOutputs; j++) {
+                totalLoss+=loss(prediction.elements[j], expected.elements[j], nn.lossFunction);
+            }
+        }    
+    }
+    return totalLoss / numSamples;
+}
+
+double loss(double output, double expectedOutput, int lf) {
+    switch(lf) {
+    case NN_MSE:
+        return MSEloss(output,expectedOutput);
+    case NN_BCE:
+        return BCEloss(output,expectedOutput);
+    default:
+        break;
+    }
+    return MSEloss(output,expectedOutput);
+}
+
+double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf) {
+    switch(lf) {
+    case NN_CCE:
+        return CCEloss(output,expectedOutput);
+    default:
+        throw "multipleOutputLoss: Unsupported loss function: " + lf;
+           
+    }
+}
+
+
+double CCEloss(Matrix predictions, Matrix labels) {
+    if (predictions.rows != labels.rows || predictions.cols != labels.cols) {
+        throw "CCEloss: Predictions and labels must have the same dimensions.";
+    }
+
+    double loss = 0.0;
+    for (int i = 0; i < predictions.rows; i++) {
+        for (int j = 0; j < predictions.cols; j++) {
+            double predicted = predictions.elements[i * predictions.cols + j];
+            double expected = labels.elements[i * labels.cols + j];
+
+            // Ensure predicted values are valid probabilities
+            if (predicted < 0 || predicted > 1) {
+                throw "CCEloss: Predictions must be probabilities (0 < p <= 1).";
+            }
+
+            // CCE formula: -sum(y * log(p))
+            loss += expected * log(predicted + 1e-10); // Add epsilon to avoid log(0)
+        }
+    }
+
+    // Average the loss over all samples
+    return -loss / predictions.rows;
+}
+
+double computeAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs) {
+    if(nOutputs>1) {
+        return computeMultiClassAccuracy(nn, dataset, nOutputs);
+    }else {
+        return computeSingleOutputAccuracy(nn, dataset);
+    }
+}
+
+double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs) {
+    int correct = 0;
+    for(int i=0; i<dataset.rows; i++) {
+        Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - nOutputs);
+        Matrix output = getSubMatrix(dataset, i, dataset.cols - nOutputs, 1, nOutputs);
+        
+        forward(nn, input);
+        Matrix pred = nn.activations[nn.layerCount-1];
+        
+        int predClass = 0;
+        double maxVal = pred.elements[0];
+        for(int j=1; j<nOutputs; j++) {
+            if(pred.elements[j] > maxVal) {
+                maxVal = pred.elements[j];
+                predClass = j;
+            }
+        }
+        
+        int trueClass = 0;
+        for(int j=0; j<nOutputs; j++) {
+            if(output.elements[j] == 1.0) {
+                trueClass = j;
+                break;
+            }
+        }
+        
+        if(predClass == trueClass) correct++;
+    }
+    return (double)correct/dataset.rows*100;
+}
+
+double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
+    int numSamples = dataset.rows;
+    int correct = 0;
+    for (int i = 0; i < numSamples; i++) {
+        Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - 1);
+        Matrix expected = getSubMatrix(dataset, i, dataset.cols - 1, 1, 1);
+        forward(nn, input);
+        double prediction = nn.activations[nn.layerCount - 1].elements[0];
+        int predictedLabel = (prediction >= 0.5) ? 1 : 0;
+        int trueLabel = (int) expected.elements[0];
+        if (predictedLabel == trueLabel) {
+            correct++;
+        }
+    }
+    return (double) correct / numSamples * 100; // Accuracy in percentage
+}
+
+
+void saveState(NeuralNetwork nn){
+    // !! TO DO implement saveState
+}
 
 
 void initializeMatrixRand(Matrix mat) {

@@ -9,17 +9,17 @@ typedef struct {
 
 Matrix createMatrix(int rows, int cols);
 void freeMatrix(Matrix mat);
-Matrix multiply(Matrix a, Matrix b);
-Matrix multiplyElementWise(Matrix a, Matrix b);
-void scaleInPlace(Matrix mat, double scalar);
-Matrix scale(Matrix mat, double scalar);
-void addInPlace(Matrix a, Matrix b);
-Matrix add(Matrix a, Matrix b);
-void subtractInPlace(Matrix a, Matrix b);
-Matrix subtract(Matrix a, Matrix b);
+Matrix multiplyMatrix(Matrix a, Matrix b);
+Matrix multiplyMatrixElementWise(Matrix a, Matrix b);
+void scaleMatrixInPlace(Matrix mat, double scalar);
+Matrix scaleMatrix(Matrix mat, double scalar);
+void addMatrixInPlace(Matrix a, Matrix b);
+Matrix addMatrix(Matrix a, Matrix b);
+void subtractMatrixInPlace(Matrix a, Matrix b);
+Matrix subtractMatrix(Matrix a, Matrix b);
 void fillMatrix(Matrix mat, double value);
 Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols);
-Matrix transpose(Matrix mat);
+Matrix transposeMatrix(Matrix mat);
 
 
 #endif // MATRIX_H

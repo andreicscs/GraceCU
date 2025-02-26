@@ -3,6 +3,15 @@
 
 #include "Matrix.h"
 
+
+
+#define NN_SIGMOID 0
+#define NN_RELU 1
+#define NN_SOFTMAX 10
+#define NN_CCE 20
+#define NN_MSE 21
+#define NN_BCE 22
+
 typedef struct {
     int* architecture;
     int layerCount;
@@ -14,16 +23,16 @@ typedef struct {
     Matrix* outputs;
     Matrix* activations;
     double learningRate;
-    char* hiddenLayersAF;
-    char* outputLayerAF;
-    char* lossFunction;
+    int hiddenLayersAF;
+    int outputLayerAF;
+    int lossFunction;
     int numOutputs;
 } NeuralNetwork;
 
 NeuralNetwork createNeuralNetwork(int* architecture, int layerCount);
 void freeNeuralNetwork(NeuralNetwork nn);
 
-void train(Matrix trainingData, int nOutputs, int batchSize);
+void train(NeuralNetwork nn, Matrix trainingData , int batchSize);
 void saveState(NeuralNetwork nn);
 double computeAccuracy(NeuralNetwork nn);
 double computeAverageLoss(NeuralNetwork nn);

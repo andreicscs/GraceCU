@@ -19,7 +19,7 @@ void freeMatrix(Matrix mat) {
 
 }
 
-Matrix multiply(Matrix a, Matrix b) {
+Matrix multiplyMatrix(Matrix a, Matrix b) {
 	if (a.cols != b.rows) {
 		throw "multiply: Matrix dimensions do not match for multiplication.";
 	}
@@ -35,7 +35,7 @@ Matrix multiply(Matrix a, Matrix b) {
 	return result;
 }
 
-Matrix multiplyElementWise(Matrix a, Matrix b) {
+Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
 	// Check if matrices have the same dimensions
 	if (a.rows != b.rows || a.cols != b.cols) {
 		throw "multiplyElementWise: Matrices must have the same dimensions for element-wise multiplication.";
@@ -47,10 +47,9 @@ Matrix multiplyElementWise(Matrix a, Matrix b) {
 		}
 	}
 	return result;
-
 }
 
-void scaleInPlace(Matrix mat, double scalar) {
+void scaleMatrixInPlace(Matrix mat, double scalar) {
 	for (int i = 0; i < mat.rows; i++) {
 		for (int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] *= scalar;
@@ -58,7 +57,7 @@ void scaleInPlace(Matrix mat, double scalar) {
 	}
 }
 
-Matrix scale(Matrix mat, double scalar) {
+Matrix scaleMatrix(Matrix mat, double scalar) {
 	Matrix result = createMatrix(mat.rows, mat.cols);
 	for (int i = 0; i < mat.rows; i++) {
 		for (int j = 0; j < mat.cols; j++) {
@@ -68,7 +67,7 @@ Matrix scale(Matrix mat, double scalar) {
 	return result;
 }
 
-void addInPlace(Matrix a, Matrix b) {
+void addMatrixInPlace(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
 		throw "addInPlace: Matrix dimensions must match for addition.";
 	}
@@ -80,7 +79,7 @@ void addInPlace(Matrix a, Matrix b) {
 	}
 }
 
-Matrix add(Matrix a, Matrix b){
+Matrix addMatrix(Matrix a, Matrix b){
 	if (a.rows != b.rows || a.cols != b.cols) throw "add: Matrix dimensions must match for addition.";
 
 	Matrix result = createMatrix(a.rows, a.cols);
@@ -90,9 +89,10 @@ Matrix add(Matrix a, Matrix b){
 			result.elements[i * result.cols + j] = b.elements[i * b.cols + j];
 		}
 	}
+	return result;
 }
 
-void subtractInPlace(Matrix a, Matrix b) {
+void subtractMatrixInPlace(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
 		throw "subtractInPlace: Matrix dimensions must match for subtraction.";
 	}
@@ -104,7 +104,7 @@ void subtractInPlace(Matrix a, Matrix b) {
 	}
 }
 
-Matrix subtract(Matrix a, Matrix b) {
+Matrix subtractMatrix(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) throw "subtract: Matrix dimensions must match for subtraction.";
 
 	Matrix result = createMatrix(a.rows, a.cols);
@@ -114,6 +114,7 @@ Matrix subtract(Matrix a, Matrix b) {
 			result.elements[i * result.cols + j] = b.elements[i * b.cols + j];
 		}
 	}
+	return result;
 }
 
 void fillMatrix(Matrix mat, double value) {
@@ -138,7 +139,7 @@ Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int num
 	return subMatrix;
 }
 
-Matrix transpose(Matrix mat) {
+Matrix transposeMatrix(Matrix mat) {
 	Matrix transposed = createMatrix(mat.cols, mat.rows);
 
 	for (int i = 0; i < mat.rows; i++) {
@@ -146,7 +147,5 @@ Matrix transpose(Matrix mat) {
 			transposed.elements[j * transposed.cols + i] = mat.elements[i * mat.cols + j];
 		}
 	}
-
 	return transposed;
-
 }

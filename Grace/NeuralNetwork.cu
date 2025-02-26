@@ -3,7 +3,32 @@
 #include <time.h>
 #include "NeuralNetwork.h"
 #include "Matrix.h"
+#include <math.h>
 
+void forward(NeuralNetwork nn, Matrix input);
+void backPropagation(NeuralNetwork nn, Matrix expectedOutput);
+Matrix applyActivation(NeuralNetwork nn, Matrix matrix, int iLayer);
+Matrix multipleOutputActivationFunction(Matrix mat, int af);
+double activationFunction(double x, int af);
+Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput);
+Matrix computeActivationDerivative(Matrix outputs, int af);
+Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf);
+double AFDerivative(double x, int af);
+Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected);
+Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput);
+Matrix computeActivationDerivative(Matrix outputs, int af);
+Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf);
+double lossDerivative(double output, double expectedOutput, int lf);
+double BCEloss(double output, double expectedOutput);
+double BCElossDerivative(double output, double expectedOutput);
+double MSEloss(double output, double expectedOutput);
+double MSElossDerivative(double output, double expectedOutput);
+void initializeMatrixRand(Matrix mat);
+Matrix softmax(Matrix mat);
+double reluDerivative(double x);
+double relu(double x);
+double sigmoid(double x);
+void updateWeightsAndBiases(NeuralNetwork nn, int batchSize);
 
 
 NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
@@ -48,7 +73,7 @@ NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
     fillMatrix(nn.outputs[0], 0);
     fillMatrix(nn.activations[0], 0);
 
-    srand(time(NULL));   // Initialization, should only be called once.
+    srand((unsigned int)time(NULL));   // Initialization, should only be called once.
 
     // !!TO DO
     //should implement different initialization methods for different activation functions, or maybe let the user decide which initialization method to use, 
@@ -71,11 +96,6 @@ NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
         fillMatrix(nn.activations[i], 0);
     }
     nn.learningRate = 0.1;
-    nn.hiddenLayersAF = "";
-    nn.outputLayerAF = "";
-    nn.lossFunction = "";
-
-    
 
 	return nn;
 }
@@ -110,11 +130,263 @@ void freeNeuralNetwork(NeuralNetwork nn) {
     nn.layerCount = 0;
     nn.numOutputs = 0;
     nn.learningRate = 0;
-    nn.hiddenLayersAF = "";
-    nn.outputLayerAF = "";
-    nn.lossFunction = "";
-
 }
+
+
+
+
+// !! TO DO look into SGD implementation
+void train(NeuralNetwork nn, Matrix trainingData, int batchSize) {
+    int trainCount = trainingData.rows;
+
+    // loop over training data
+    for (int i = 0; i < trainCount; ++i) {
+        forward(nn, getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn.numOutputs));
+        backPropagation(nn, getSubMatrix(trainingData, i, trainingData.cols - nn.numOutputs, 1, nn.numOutputs));
+        if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) { // udate weights only after batchSize rows are processed.
+            updateWeightsAndBiases(nn, batchSize);
+        }
+    }
+}
+
+
+void forward(NeuralNetwork nn, Matrix input) {
+    nn.activations[0] = input;
+    nn.outputs[0] = nn.activations[0];
+    for (int i = 1; i < nn.layerCount; ++i) {
+        nn.activations[i] = multiplyMatrix(nn.activations[i - 1], nn.weights[i]);
+        addMatrixInPlace(nn.activations[i], nn.biases[i]);
+        nn.outputs[i] = nn.activations[i];
+        nn.activations[i] = applyActivation(nn, nn.activations[i], i);
+    }
+}
+
+void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
+    Matrix* deltas = (Matrix*)malloc(sizeof(Matrix) * nn.layerCount); if (deltas == NULL)throw "backPropagation: malloc failed";
+    deltas[nn.layerCount - 1] = computeOutputLayerDeltas(nn, expectedOutput);
+
+    // propagate error backward
+    for (int i = nn.layerCount - 1; i > 0; --i) {
+        Matrix weightGradients = multiplyMatrix(transposeMatrix(nn.activations[i - 1]), deltas[i]);  // compute weight gradients for layer i Weight gradients = activations[i-1]^T * deltas[i]
+        addMatrixInPlace(nn.weightsGradients[i], weightGradients);
+
+        // compute bias gradients (sum over batch)
+        Matrix biasGradients = deltas[i];
+        addMatrixInPlace(nn.biasesGradients[i], biasGradients);
+
+        // compute deltas for previous layer (if not input layer)
+        if (i > 1) {
+            Matrix inputGradients = multiplyMatrix(deltas[i], transposeMatrix(nn.weights[i]));	// input gradients = deltas[i] * weights[i]^T
+            Matrix activationDerivative = computeActivationDerivative(nn.outputs[i - 1], nn.hiddenLayersAF);	// activation derivative = f'(outputs[i-1])
+            deltas[i - 1] = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// deltas for previous layer = inputGradients ⊙ activationDerivative
+        }
+    }
+}
+
+void updateWeightsAndBiases(NeuralNetwork nn, int batchSize) {
+    // this loop can be parallelized
+    for (int i = 1; i < nn.layerCount; ++i) {
+        // Update weights
+        scaleMatrixInPlace(nn.weightsGradients[i], 1.0 / batchSize);
+        subtractMatrixInPlace(nn.weights[i], scaleMatrix(nn.weightsGradients[i], nn.learningRate));
+        fillMatrix(nn.weightsGradients[i], 0.0); // Reset gradients
+
+        // Update biases
+        scaleMatrixInPlace(nn.biasesGradients[i], 1.0 / batchSize);
+        subtractMatrixInPlace(nn.biases[i], scaleMatrix(nn.biasesGradients[i], nn.learningRate));
+        fillMatrix(nn.biasesGradients[i], 0.0); // Reset gradients
+    }
+}
+
+
+
+
+Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput) {
+    Matrix predicted = nn.activations[nn.layerCount - 1];
+    Matrix rawPredicted = nn.outputs[nn.layerCount - 1];
+    Matrix curLayerDeltas;
+    if (nn.numOutputs > 1) { // Multi-output
+        curLayerDeltas = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.lossFunction); // because the af derivative and the loss derivative simplify each other only one calculation is needed
+    }
+    else { // Single output
+        Matrix dLoss_dY = computeLossDerivative(predicted, expectedOutput, nn.lossFunction); // derivative of the loss function
+        Matrix activationDerivative = computeActivationDerivative(rawPredicted, nn.outputLayerAF);
+        curLayerDeltas = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // delta = dLoss_dY * derivative of the activation function with the non-activated output as input
+    }
+    return curLayerDeltas;
+}
+
+Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf) {
+    switch (lf) {
+        case NN_CCE:
+            return CCElossDerivativeMatrix(output, expectedOutput);
+        default:
+            throw "computeMultipleOutputLossDerivativeMatrix: Unsupported loss function: " + lf;
+    }
+}
+
+Matrix computeActivationDerivative(Matrix outputs, int af) {
+    Matrix derivative = createMatrix(outputs.rows, outputs.cols);
+    for (int i = 0; i < outputs.rows; i++) {
+        for (int j = 0; j < outputs.cols; j++) {
+            derivative.elements[i * derivative.rows + j] = AFDerivative(outputs.elements[i * outputs.rows + j], af);
+        }
+    }
+    return derivative;
+}
+
+Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf) {
+    Matrix derivative = createMatrix(outputs.rows, outputs.cols);
+    for (int j = 0; j < outputs.cols; j++) {
+        derivative.elements[j] = lossDerivative(outputs.elements[j], expectedOutputs.elements[j], lf);
+    }
+    return derivative;
+}
+
+
+double lossDerivative(double output, double expectedOutput, int lf) {
+    switch (lf) {
+        case NN_MSE:
+            return MSElossDerivative(output, expectedOutput);
+        case NN_BCE:
+            return BCElossDerivative(output, expectedOutput);
+        default:
+            break;
+        }
+    return MSElossDerivative(output, expectedOutput);
+}
+
+
+Matrix applyActivation(NeuralNetwork nn, Matrix mat, int iLayer) {
+    Matrix activated;
+
+    if ((iLayer == nn.layerCount - 1) && (nn.numOutputs > 1)) { // try to apply non mutually exclusive multiple clases AFs first.
+        activated = multipleOutputActivationFunction(mat, nn.outputLayerAF);
+        if (activated.elements != NULL) {
+            return activated;
+        }
+    }
+    activated = createMatrix(mat.rows, mat.cols);
+    // if they were not selected proceed with mutually exclusive AF.
+    for (int i = 0; i < mat.rows; i++) {
+        for (int j = 0; j < mat.cols; j++) {
+            if (iLayer == nn.layerCount - 1) {
+                activated.elements[i * activated.cols + j] = activationFunction(mat.elements[i * mat.cols + j], nn.outputLayerAF);
+            }
+            else {
+                activated.elements[i * activated.cols + j] = activationFunction(mat.elements[i * mat.cols + j], nn.hiddenLayersAF);
+            }
+        }
+    }
+    return activated;
+}
+
+Matrix multipleOutputActivationFunction(Matrix mat, int af) {
+    Matrix res = createMatrix(0,0);
+    res.elements = NULL;
+
+    switch (af) {
+        case NN_SOFTMAX:
+            return softmax(mat);
+        default:
+            break;
+    }
+    return res;
+}
+
+double activationFunction(double x, int af) {
+    switch (af) {
+        case NN_SIGMOID:
+            return sigmoid(x);
+        case NN_RELU:
+            return relu(x);
+        default:
+            break;
+    }
+
+    return x;
+}
+
+double AFDerivative(double x, int af) {
+    switch (af) {
+        case NN_SIGMOID:
+        {
+            double sig = sigmoid(x);
+            return sig * (1.0 - sig);
+        }
+        case NN_RELU:
+            return reluDerivative(x);
+        default:
+            break;
+        }
+    return 1;
+}
+
+double sigmoid(double x) {
+    return 1.0 / (1.0 + exp(-x));
+}
+double relu(double x) {
+    return 0 >= x ? 0 : x; // max between 0 and x
+}
+
+double reluDerivative(double x) {
+    return x <= 0 ? 0 : 1;
+}
+
+Matrix softmax(Matrix mat) {
+    Matrix result = createMatrix(mat.rows, mat.cols);
+
+    for (int i = 0; i < mat.rows; i++) {
+        double max = mat.elements[i * mat.cols];
+        for (int j = 1; j < mat.cols; j++) {
+            if (mat.elements[i * mat.cols + j] > max) {
+                max = mat.elements[i * mat.cols + j];
+            }
+        }
+        double sum = 0.0;
+        for (int j = 0; j < mat.cols; j++) {
+            result.elements[i * mat.cols + j] = exp(mat.elements[i * mat.cols + j] - max);
+            sum += result.elements[i * mat.cols + j];
+        }
+        for (int j = 0; j < mat.cols; j++) {
+            result.elements[i * mat.cols + j] /= sum;
+        }
+    }
+    return result;
+}
+
+Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected) {
+    // For softmax + categorical cross-entropy, delta = predicted - true label
+    Matrix deltas = subtractMatrix(predicted, expected);
+    return deltas;
+}
+
+double BCEloss(double output, double expectedOutput) {
+    // Clip output to avoid log(0)
+    double epsilon = 1e-9;  // Small value to prevent log(0)
+    output = epsilon >= (1 - epsilon <= output ? 1 - epsilon : output) ? epsilon : (1 - epsilon <= output ? 1 - epsilon : output);
+    return -(expectedOutput * log(output) + (1 - expectedOutput) * log(1 - output));
+}
+double BCElossDerivative(double output, double expectedOutput) {
+    // Clip output to avoid division by zero
+    double epsilon = 1e-9;
+    output = epsilon >= (1 - epsilon <= output ? 1 - epsilon : output) ? epsilon : (1 - epsilon <= output ? 1 - epsilon : output);
+    return (output - expectedOutput) / (output * (1 - output));
+}
+
+double MSEloss(double output, double expectedOutput) {
+    double error = 0;
+    error = (output - expectedOutput);
+    error = error * error;
+    return error;
+}
+
+double MSElossDerivative(double output, double expectedOutput) {
+    double error = 0;
+    error = output - expectedOutput;
+    return error;
+}
+
 
 
 void initializeMatrixRand(Matrix mat) {
@@ -126,3 +398,10 @@ void initializeMatrixRand(Matrix mat) {
         }
     }
 }
+
+
+
+
+
+
+

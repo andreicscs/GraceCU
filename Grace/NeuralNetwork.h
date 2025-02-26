@@ -32,10 +32,10 @@ typedef struct {
 NeuralNetwork createNeuralNetwork(int* architecture, int layerCount);
 void freeNeuralNetwork(NeuralNetwork nn);
 
-void train(NeuralNetwork nn, Matrix trainingData , int batchSize);
-void saveState(NeuralNetwork nn);
-double computeAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
-double computeAverageLoss(NeuralNetwork nn, Matrix trainingData);
+void trainNN(NeuralNetwork nn, Matrix trainingData , int batchSize);
+void saveStateNN(NeuralNetwork nn);
+double computeAccuracyNN(NeuralNetwork nn, Matrix dataset, int nOutputs);
+double computeAverageLossNN(NeuralNetwork nn, Matrix trainingData);
 
 
 #endif // NN_H

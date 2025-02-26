@@ -29,11 +29,9 @@ double reluDerivative(double x);
 double relu(double x);
 double sigmoid(double x);
 void updateWeightsAndBiases(NeuralNetwork nn, int batchSize);
-double computeAverageLoss(NeuralNetwork nn, Matrix trainingData);
 double loss(double output, double expectedOutput, int lf);
 double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf);
 double CCEloss(Matrix predictions, Matrix labels);
-double computeAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
 double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
 double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
 
@@ -143,7 +141,7 @@ void freeNeuralNetwork(NeuralNetwork nn) {
 
 
 // !! TO DO look into SGD implementation
-void train(NeuralNetwork nn, Matrix trainingData, int batchSize) {
+void trainNN(NeuralNetwork nn, Matrix trainingData, int batchSize) {
     int trainCount = trainingData.rows;
 
     // loop over training data
@@ -397,7 +395,7 @@ double MSElossDerivative(double output, double expectedOutput) {
 
 
 
-double computeAverageLoss(NeuralNetwork nn, Matrix trainingData) {
+double computeAverageLossNN(NeuralNetwork nn, Matrix trainingData) {
     int numSamples = trainingData.rows;
     double totalLoss = 0.0;
     
@@ -470,7 +468,7 @@ double CCEloss(Matrix predictions, Matrix labels) {
     return -loss / predictions.rows;
 }
 
-double computeAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs) {
+double computeAccuracyNN(NeuralNetwork nn, Matrix dataset, int nOutputs) {
     if(nOutputs>1) {
         return computeMultiClassAccuracy(nn, dataset, nOutputs);
     }else {
@@ -527,8 +525,8 @@ double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
 }
 
 
-void saveState(NeuralNetwork nn){
-    // !! TO DO implement saveState
+void saveStateNN(NeuralNetwork nn){
+    // !! TO DO implement saveStateNN
 }
 
 

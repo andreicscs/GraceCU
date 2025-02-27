@@ -3,7 +3,13 @@
 #include <time.h>
 #include "NeuralNetwork.h"
 #include "Matrix.h"
+#define _USE_MATH_DEFINES
 #include <math.h>
+#include <iostream>
+#include <stdio.h>
+
+
+using namespace std;
 
 void forward(NeuralNetwork nn, Matrix input);
 void backPropagation(NeuralNetwork nn, Matrix expectedOutput);
@@ -33,8 +39,8 @@ double loss(double output, double expectedOutput, int lf);
 double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf);
 double CCEloss(Matrix predictions, Matrix labels);
 double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
-double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs);
-
+double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset);
+double randomNormal(double mean, double stddev);
 
 NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
 	NeuralNetwork nn;
@@ -78,11 +84,11 @@ NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
     fillMatrix(nn.outputs[0], 0);
     fillMatrix(nn.activations[0], 0);
 
-    srand((unsigned int)time(NULL));   // Initialization, should only be called once.
+    srand(time(NULL));
 
     // !!TO DO
     //should implement different initialization methods for different activation functions, or maybe let the user decide which initialization method to use, 
-    //initializing weights in the range (-0.5, 0.5) and biases to 0.01(which helps prevent dead neurons) for now.
+    //initializing weights using he initialization and biases to 0.01(which helps prevent dead neurons) for now.
     for (int i = 1; i < layerCount; i++) {
         nn.weights[i] = createMatrix(architecture[i-1], architecture[i]);
         nn.biases[i] = createMatrix(1, architecture[i]);
@@ -143,12 +149,12 @@ void freeNeuralNetwork(NeuralNetwork nn) {
 // !! TO DO look into SGD implementation
 void trainNN(NeuralNetwork nn, Matrix trainingData, int batchSize) {
     int trainCount = trainingData.rows;
-
+    
     // loop over training data
     for (int i = 0; i < trainCount; ++i) {
         forward(nn, getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn.numOutputs));
         backPropagation(nn, getSubMatrix(trainingData, i, trainingData.cols - nn.numOutputs, 1, nn.numOutputs));
-        if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) { // udate weights only after batchSize rows are processed.
+        if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) { // update weights only after batchSize rows are processed.
             updateWeightsAndBiases(nn, batchSize);
         }
     }
@@ -167,7 +173,7 @@ void forward(NeuralNetwork nn, Matrix input) {
 }
 
 void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
-    Matrix* deltas = (Matrix*)malloc(sizeof(Matrix) * nn.layerCount); if (deltas == NULL)throw "backPropagation: malloc failed";
+    Matrix* deltas = (Matrix*)malloc(sizeof(Matrix) * nn.layerCount); if (deltas == NULL) throw "backPropagation: malloc failed";
     deltas[nn.layerCount - 1] = computeOutputLayerDeltas(nn, expectedOutput);
 
     // propagate error backward
@@ -201,6 +207,7 @@ void updateWeightsAndBiases(NeuralNetwork nn, int batchSize) {
         subtractMatrixInPlace(nn.biases[i], scaleMatrix(nn.biasesGradients[i], nn.learningRate));
         fillMatrix(nn.biasesGradients[i], 0.0); // Reset gradients
     }
+    
 }
 
 
@@ -468,26 +475,26 @@ double CCEloss(Matrix predictions, Matrix labels) {
     return -loss / predictions.rows;
 }
 
-double computeAccuracyNN(NeuralNetwork nn, Matrix dataset, int nOutputs) {
-    if(nOutputs>1) {
-        return computeMultiClassAccuracy(nn, dataset, nOutputs);
+double computeAccuracyNN(NeuralNetwork nn, Matrix dataset) {
+    if(nn.numOutputs>1) {
+        return computeMultiClassAccuracy(nn, dataset);
     }else {
         return computeSingleOutputAccuracy(nn, dataset);
     }
 }
 
-double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs) {
+double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
     int correct = 0;
     for(int i=0; i<dataset.rows; i++) {
-        Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - nOutputs);
-        Matrix output = getSubMatrix(dataset, i, dataset.cols - nOutputs, 1, nOutputs);
+        Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - nn.numOutputs);
+        Matrix output = getSubMatrix(dataset, i, dataset.cols - nn.numOutputs, 1, nn.numOutputs);
         
         forward(nn, input);
         Matrix pred = nn.activations[nn.layerCount-1];
         
         int predClass = 0;
         double maxVal = pred.elements[0];
-        for(int j=1; j<nOutputs; j++) {
+        for(int j=1; j< nn.numOutputs; j++) {
             if(pred.elements[j] > maxVal) {
                 maxVal = pred.elements[j];
                 predClass = j;
@@ -495,7 +502,7 @@ double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, int nOutputs)
         }
         
         int trueClass = 0;
-        for(int j=0; j<nOutputs; j++) {
+        for(int j=0; j< nn.numOutputs; j++) {
             if(output.elements[j] == 1.0) {
                 trueClass = j;
                 break;
@@ -530,17 +537,31 @@ void saveStateNN(NeuralNetwork nn){
 }
 
 
+
+
+
+
 void initializeMatrixRand(Matrix mat) {
-    int randomValue;
+    double stddev = sqrt(2.0 / mat.rows);
+    // use different stddev and mean values to implement different initialization methods.
+
     for (int i = 0; i < mat.rows; i++) {
         for (int j = 0; j < mat.cols; j++) {
-            randomValue = ((rand() % (1000+ 1))-500)/1000; // random value in range (-0.5, 0.5)
-            mat.elements[i * mat.cols + j] = randomValue;
+            mat.elements[i * mat.cols + j] = randomNormal(0.0, stddev);
         }
     }
 }
 
+double randomNormal(double mean, double stddev) {
+    double u1 = (double)((double)rand() / (double)RAND_MAX);
+    double u2 = (double)((double)rand() / (double)RAND_MAX);
 
+    if (u1 < 1e-10) u1= 1e-10; // avoid log(0) errors
+
+    double z0 = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+    
+    return mean + stddev * z0;
+}
 
 
 

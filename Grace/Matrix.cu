@@ -1,5 +1,8 @@
 #include "Matrix.h"
 #include <stdlib.h>
+#include <iostream>
+
+using namespace std;
 
 Matrix createMatrix(int rows, int cols) {
 	Matrix mat;
@@ -24,11 +27,12 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 		throw "multiply: Matrix dimensions do not match for multiplication.";
 	}
 	Matrix result = createMatrix(a.rows, b.cols);
+	fillMatrix(result, 0);
 
 	for (int i = 0; i < a.rows; i++) {
 		for (int j = 0; j < b.cols; j++) {
 			for (int k = 0; k < a.cols; k++) {
-				result.elements[i*result.cols+j] += a.elements[i * a.cols + k] * b.elements[k * b.cols + j];
+				result.elements[i * result.cols + j] += a.elements[i * a.cols + k] * b.elements[k * b.cols + j];
 			}
 		}
 	}
@@ -133,7 +137,7 @@ Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int num
 	Matrix subMatrix = createMatrix(numRows, numCols);
 	for (int i = 0; i < numRows; i++) {
 		for (int j = 0; j < numCols; j++) {
-			subMatrix.elements[i * subMatrix.cols + j] = mat.elements[startRow + i * mat.cols + j + startCol];
+			subMatrix.elements[i * subMatrix.cols + j] = mat.elements[(startRow + i) * mat.cols + (j + startCol)];
 		}
 	}
 	return subMatrix;
@@ -148,4 +152,13 @@ Matrix transposeMatrix(Matrix mat) {
 		}
 	}
 	return transposed;
+}
+
+void printMatrix(Matrix mat) {
+	for (int i = 0; i < mat.rows;++i) {
+		for (int j = 0; j < mat.cols; ++j) {
+			cout << mat.elements[i * mat.cols + j]<<" ";
+		}
+		cout << endl;
+	}
 }

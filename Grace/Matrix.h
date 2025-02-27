@@ -20,6 +20,6 @@ Matrix subtractMatrix(Matrix a, Matrix b);
 void fillMatrix(Matrix mat, double value);
 Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols);
 Matrix transposeMatrix(Matrix mat);
-
+void printMatrix(Matrix mat);
 
 #endif // MATRIX_H

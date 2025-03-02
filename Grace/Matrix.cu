@@ -1,8 +1,46 @@
+
+// check memory leaks
+#define _CRTDBG_MAP_ALLOC
+#include <cstdlib>
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new DEBUG_NEW
+#define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
 #include "Matrix.h"
 #include <stdlib.h>
 #include <iostream>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
 
 using namespace std;
+
+__global__ void matMul();
+__global__ void matAdd();
+
+
+
+
+__global__ void matMul() {
+
+}
+
+__global__ void matAdd() {
+
+}
+
+
+Matrix copyMatrix(Matrix src) {
+	Matrix dest = createMatrix(src.rows, src.cols);
+	for (int i = 0; i < src.rows * src.cols; ++i) {
+		dest.elements[i] = src.elements[i];
+	}
+	return dest;
+}
 
 Matrix createMatrix(int rows, int cols) {
 	Matrix mat;
@@ -18,8 +56,9 @@ Matrix createMatrix(int rows, int cols) {
 void freeMatrix(Matrix mat) {
 	mat.rows = 0;
 	mat.cols = 0;
-	free(mat.elements);
-
+	if (mat.elements != nullptr) {
+		free(mat.elements);
+	}
 }
 
 Matrix multiplyMatrix(Matrix a, Matrix b) {
@@ -115,7 +154,7 @@ Matrix subtractMatrix(Matrix a, Matrix b) {
 
 	for (int i = 0; i < a.rows; i++) {
 		for (int j = 0; j < a.cols; j++) {
-			result.elements[i * result.cols + j] = b.elements[i * b.cols + j];
+			result.elements[i * result.cols + j] = a.elements[i * a.cols + j] - b.elements[i * b.cols + j];
 		}
 	}
 	return result;
@@ -161,4 +200,14 @@ void printMatrix(Matrix mat) {
 		}
 		cout << endl;
 	}
+}
+
+double sumMatrix(Matrix src) {
+	double result = 0.0;
+	for (int i = 0; i < src.rows; ++i) {
+		for (int j = 0; j < src.cols; ++j) {
+			result += src.elements[i * src.cols + j];
+		}
+	}
+	return result;
 }

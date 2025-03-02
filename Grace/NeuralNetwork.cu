@@ -1,4 +1,18 @@
 
+
+
+
+// check memory leaks
+#define _CRTDBG_MAP_ALLOC
+#include <cstdlib>
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new DEBUG_NEW
+#define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
 #include <stdlib.h>
 #include <time.h>
 #include "NeuralNetwork.h"
@@ -21,7 +35,6 @@ Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf);
 double AFDerivative(double x, int af);
 Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected);
-Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput);
 Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf);
 double lossDerivative(double output, double expectedOutput, int lf);
@@ -42,71 +55,60 @@ double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
 double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset);
 double randomNormal(double mean, double stddev);
 
+
+
 NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
 	NeuralNetwork nn;
     
     nn.architecture = architecture;
     nn.layerCount = layerCount;
-    nn.weights = (Matrix*) malloc(sizeof(Matrix)*layerCount); if (nn.weights == NULL)throw "createNeuralNetwork: malloc failed";
-    nn.biases = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.biases == NULL)throw "createNeuralNetwork: malloc failed";
-    nn.weightsGradients = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.weightsGradients == NULL)throw "createNeuralNetwork: malloc failed";
-    nn.biasesGradients = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.biasesGradients == NULL)throw "createNeuralNetwork: malloc failed";
-    nn.inputGradients = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.inputGradients == NULL)throw "createNeuralNetwork: malloc failed";
-    nn.outputs = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.outputs == NULL)throw "createNeuralNetwork: malloc failed";
-    nn.activations = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.activations == NULL)throw "createNeuralNetwork: malloc failed";
+    nn.weights = (Matrix*) malloc(sizeof(Matrix) * (layerCount-1)); if (nn.weights == nullptr)throw "createNeuralNetwork: malloc failed";
+    nn.biases = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1)); if (nn.biases == nullptr)throw "createNeuralNetwork: malloc failed";
+    nn.weightsGradients = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1)); if (nn.weightsGradients == nullptr)throw "createNeuralNetwork: malloc failed";
+    nn.biasesGradients = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1)); if (nn.biasesGradients == nullptr)throw "createNeuralNetwork: malloc failed";
+    nn.outputs = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.outputs == nullptr)throw "createNeuralNetwork: malloc failed";
+    nn.activations = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn.activations == nullptr)throw "createNeuralNetwork: malloc failed";
+    nn.deltas = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1));
     nn.numOutputs = architecture[layerCount - 1];
 
 
-    /*
-    * allocating first layer matrices.
-    */
-    nn.weights[0] = createMatrix(1, architecture[0]);
-    nn.biases[0] = createMatrix(1, architecture[0]);
-    
-    nn.weightsGradients[0] = createMatrix(1, architecture[0]);
-    nn.biasesGradients[0] = createMatrix(1, architecture[0]);
-    nn.inputGradients[0] = createMatrix(1, architecture[0]);
-    
-    nn.outputs[0] = createMatrix(1, architecture[0]);
-    nn.activations[0] = createMatrix(1, architecture[0]);
-
-    /*
-    * initializing first layer matrices.
-    * weights and biases are initialized to neutral values for the corresponding 
-    * operations to make sure they are ignored for the input layer.
-    * other matrices are initialized to 0.
-    */
-    fillMatrix(nn.weights[0], 1);
-    fillMatrix(nn.biases[0], 0);
-    fillMatrix(nn.weightsGradients[0], 0);
-    fillMatrix(nn.biasesGradients[0], 0);
-    fillMatrix(nn.inputGradients[0], 0);
-    fillMatrix(nn.outputs[0], 0);
-    fillMatrix(nn.activations[0], 0);
-
     srand(time(NULL));
 
-    // !!TO DO
-    //should implement different initialization methods for different activation functions, or maybe let the user decide which initialization method to use, 
-    //initializing weights using he initialization and biases to 0.01(which helps prevent dead neurons) for now.
-    for (int i = 1; i < layerCount; i++) {
-        nn.weights[i] = createMatrix(architecture[i-1], architecture[i]);
-        nn.biases[i] = createMatrix(1, architecture[i]);
-        nn.weightsGradients[i] = createMatrix(architecture[i-1], architecture[i]);
-        nn.biasesGradients[i] = createMatrix(1, architecture[i]);
-        nn.inputGradients[i] = createMatrix(architecture[i-1], architecture[i]);
-        nn.outputs[i] = createMatrix(1, architecture[i]);
-        nn.activations[i] = createMatrix(1, architecture[i]);
-    
+
+    /*
+     * Allocating and initializing weights, biases, and gradients for layers 1 to layerCount-1.
+     * 
+     *  !!TO DO
+     * should implement different initialization methods for different activation functions, or maybe let the user decide which initialization method to use, 
+     * initializing weights using he initialization and biases to 0.01(which helps prevent dead neurons) for now.
+     */
+    for (int i = 0; i < layerCount - 1; ++i) {  // Loop over layerCount-1 weight matrices
+        nn.weights[i] = createMatrix(architecture[i], architecture[i + 1]);
+        nn.biases[i] = createMatrix(1, architecture[i + 1]);
+        nn.weightsGradients[i] = createMatrix(architecture[i], architecture[i + 1]);
+        nn.biasesGradients[i] = createMatrix(1, architecture[i + 1]);
+        nn.deltas[i] = createMatrix(1, architecture[i + 1]);
+
         initializeMatrixRand(nn.weights[i]);
-        fillMatrix(nn.biases[i], 0.01);
+        fillMatrix(nn.biases[i], 0.01);  // Initialize biases to small values
+
+        // Initialize gradients to zero
         fillMatrix(nn.weightsGradients[i], 0);
         fillMatrix(nn.biasesGradients[i], 0);
-        fillMatrix(nn.inputGradients[i], 0);
-        fillMatrix(nn.outputs[i], 0);
-        fillMatrix(nn.activations[i], 0);
+        fillMatrix(nn.deltas[i], 0);
+        double sum = 0.0;
+        for (int j = 0; j < nn.weights[i].rows * nn.weights[i].cols; ++j) {
+            sum += fabs(nn.weights[i].elements[j]);
+        }
     }
-    nn.learningRate = 0.1;
+
+    for (int i = 0; i < layerCount; ++i) {
+        nn.outputs[i] = { 0, 0, nullptr };
+        nn.activations[i] = { 0, 0, nullptr };
+    }
+
+
+    nn.learningRate = 0.01;
 
 	return nn;
 }
@@ -116,28 +118,30 @@ NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
 
 void freeNeuralNetwork(NeuralNetwork nn) {
     //free all matrices inside matrices arrays
-    for (int i = 0; i < nn.layerCount; i++) {
-        freeMatrix(nn.weights[i]);
-        freeMatrix(nn.biases[i]);
-        freeMatrix(nn.weightsGradients[i]);
-        freeMatrix(nn.biasesGradients[i]);
-        freeMatrix(nn.inputGradients[i]);
-        freeMatrix(nn.outputs[i]);
-        freeMatrix(nn.activations[i]);
+    for (int i = 0; i < nn.layerCount; ++i) {
+        if (nn.outputs[i].elements != nullptr) freeMatrix(nn.outputs[i]);
+        if (nn.activations[i].elements != nullptr) freeMatrix(nn.activations[i]);
+    }
+    for (int i = 0; i < nn.layerCount - 1; ++i) {
+        if (nn.weights[i].elements != nullptr) freeMatrix(nn.weights[i]);
+        if (nn.biases[i].elements != nullptr) freeMatrix(nn.biases[i]);
+        if (nn.weightsGradients[i].elements != nullptr) freeMatrix(nn.weightsGradients[i]);
+        if (nn.biasesGradients[i].elements != nullptr) freeMatrix(nn.biasesGradients[i]);
+        if (nn.deltas[i].elements != nullptr) freeMatrix(nn.deltas[i]);
     }
 
     //free matrices arrays
-    free(nn.weights);
-    free(nn.biases);
-    free(nn.weightsGradients);
-    free(nn.biasesGradients);
-    free(nn.inputGradients);
-    free(nn.outputs);
-    free(nn.activations);
+    if (nn.weights != nullptr) free(nn.weights);
+    if (nn.biases != nullptr) free(nn.biases);
+    if (nn.weightsGradients != nullptr) free(nn.weightsGradients);
+    if (nn.biasesGradients != nullptr) free(nn.biasesGradients);
+    if (nn.outputs != nullptr) free(nn.outputs);
+    if (nn.activations != nullptr) free(nn.activations);
+    if (nn.deltas != nullptr) free(nn.deltas);
 
 
     //reset values
-    nn.architecture = 0;
+    nn.architecture = nullptr;
     nn.layerCount = 0;
     nn.numOutputs = 0;
     nn.learningRate = 0;
@@ -152,9 +156,16 @@ void trainNN(NeuralNetwork nn, Matrix trainingData, int batchSize) {
     
     // loop over training data
     for (int i = 0; i < trainCount; ++i) {
-        forward(nn, getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn.numOutputs));
-        backPropagation(nn, getSubMatrix(trainingData, i, trainingData.cols - nn.numOutputs, 1, nn.numOutputs));
-        if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) { // update weights only after batchSize rows are processed.
+        Matrix input = getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn.numOutputs);
+        Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn.numOutputs, 1, nn.numOutputs);
+
+        forward(nn, input);
+        backPropagation(nn, expected);
+
+        freeMatrix(input);
+        freeMatrix(expected);
+
+        if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) {
             updateWeightsAndBiases(nn, batchSize);
         }
     }
@@ -162,68 +173,106 @@ void trainNN(NeuralNetwork nn, Matrix trainingData, int batchSize) {
 
 
 void forward(NeuralNetwork nn, Matrix input) {
-    nn.activations[0] = input;
-    nn.outputs[0] = nn.activations[0];
+    // free existing activations[0] and replace with input
+    if (nn.activations[0].elements != nullptr) {
+        freeMatrix(nn.activations[0]);
+    }    
+    nn.activations[0] = copyMatrix(input);
+
     for (int i = 1; i < nn.layerCount; ++i) {
-        nn.activations[i] = multiplyMatrix(nn.activations[i - 1], nn.weights[i]);
-        addMatrixInPlace(nn.activations[i], nn.biases[i]);
-        nn.outputs[i] = nn.activations[i];
-        nn.activations[i] = applyActivation(nn, nn.activations[i], i);
+        // free previous activations[i] and outputs[i]
+        if (nn.activations[i].elements != nullptr) {
+            freeMatrix(nn.activations[i]);
+        }
+        if (nn.outputs[i].elements != nullptr) {
+            freeMatrix(nn.outputs[i]);
+        }
+
+        // compute new values
+        Matrix result = multiplyMatrix(nn.activations[i - 1], nn.weights[i-1]);
+        addMatrixInPlace(result, nn.biases[i-1]);
+
+        nn.outputs[i] = copyMatrix(result);
+        nn.activations[i] = applyActivation(nn, result, i);
+        freeMatrix(result);
     }
 }
 
+
 void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
-    Matrix* deltas = (Matrix*)malloc(sizeof(Matrix) * nn.layerCount); if (deltas == NULL) throw "backPropagation: malloc failed";
-    deltas[nn.layerCount - 1] = computeOutputLayerDeltas(nn, expectedOutput);
+    // free existing deltas
+    for (int i = 0; i < nn.layerCount-1; ++i) {
+        if (nn.deltas[i].elements != nullptr) {
+            freeMatrix(nn.deltas[i]);
+        }
+    }
+
+    nn.deltas[nn.layerCount - 2] = computeOutputLayerDeltas(nn, expectedOutput);
 
     // propagate error backward
     for (int i = nn.layerCount - 1; i > 0; --i) {
-        Matrix weightGradients = multiplyMatrix(transposeMatrix(nn.activations[i - 1]), deltas[i]);  // compute weight gradients for layer i Weight gradients = activations[i-1]^T * deltas[i]
-        addMatrixInPlace(nn.weightsGradients[i], weightGradients);
+        Matrix transposedActivations = transposeMatrix(nn.activations[i - 1]);
+        Matrix weightGradients = multiplyMatrix(transposedActivations, nn.deltas[i-1]);  // compute weight gradients for layer i Weight gradients = activations[i-1]^T * deltas[i-1]
+        addMatrixInPlace(nn.weightsGradients[i-1], weightGradients);
+
+        // free intermediate matrices
+        freeMatrix(transposedActivations);
+        freeMatrix(weightGradients);
 
         // compute bias gradients (sum over batch)
-        Matrix biasGradients = deltas[i];
-        addMatrixInPlace(nn.biasesGradients[i], biasGradients);
+        Matrix biasGradients = copyMatrix(nn.deltas[i-1]);
+        addMatrixInPlace(nn.biasesGradients[i-1], biasGradients);
+        freeMatrix(biasGradients);
 
         // compute deltas for previous layer (if not input layer)
         if (i > 1) {
-            Matrix inputGradients = multiplyMatrix(deltas[i], transposeMatrix(nn.weights[i]));	// input gradients = deltas[i] * weights[i]^T
+            Matrix transposedWeights = transposeMatrix(nn.weights[i-1]);
+            Matrix inputGradients = multiplyMatrix(nn.deltas[i-1], transposedWeights);	// input gradients = deltas[i-1] * weights[i]^T
+            freeMatrix(transposedWeights);
+
             Matrix activationDerivative = computeActivationDerivative(nn.outputs[i - 1], nn.hiddenLayersAF);	// activation derivative = f'(outputs[i-1])
-            deltas[i - 1] = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// deltas for previous layer = inputGradients ⊙ activationDerivative
+            nn.deltas[i - 2] = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// deltas for previous layer = inputGradients ⊙ activationDerivative
+            // free intermediate matrices
+            freeMatrix(inputGradients);
+            freeMatrix(activationDerivative);
         }
     }
 }
 
 void updateWeightsAndBiases(NeuralNetwork nn, int batchSize) {
     // this loop can be parallelized
-    for (int i = 1; i < nn.layerCount; ++i) {
-        // Update weights
+    for (int i = 0; i < nn.layerCount-1; ++i) {
+        // update weights
         scaleMatrixInPlace(nn.weightsGradients[i], 1.0 / batchSize);
-        subtractMatrixInPlace(nn.weights[i], scaleMatrix(nn.weightsGradients[i], nn.learningRate));
-        fillMatrix(nn.weightsGradients[i], 0.0); // Reset gradients
+        Matrix scaledMatrix = scaleMatrix(nn.weightsGradients[i], nn.learningRate);
+        subtractMatrixInPlace(nn.weights[i], scaledMatrix);
+        freeMatrix(scaledMatrix);
+        fillMatrix(nn.weightsGradients[i], 0.0); // reset gradients
 
-        // Update biases
+        // update biases
         scaleMatrixInPlace(nn.biasesGradients[i], 1.0 / batchSize);
-        subtractMatrixInPlace(nn.biases[i], scaleMatrix(nn.biasesGradients[i], nn.learningRate));
-        fillMatrix(nn.biasesGradients[i], 0.0); // Reset gradients
+        scaledMatrix = scaleMatrix(nn.biasesGradients[i], nn.learningRate);
+        subtractMatrixInPlace(nn.biases[i], scaledMatrix);
+        freeMatrix(scaledMatrix);
+        fillMatrix(nn.biasesGradients[i], 0.0); // reset gradients
     }
     
 }
-
-
 
 
 Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput) {
     Matrix predicted = nn.activations[nn.layerCount - 1];
     Matrix rawPredicted = nn.outputs[nn.layerCount - 1];
     Matrix curLayerDeltas;
-    if (nn.numOutputs > 1) { // Multi-output
+    if (nn.numOutputs > 1) { // multi output
         curLayerDeltas = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.lossFunction); // because the af derivative and the loss derivative simplify each other only one calculation is needed
     }
-    else { // Single output
+    else { // single output
         Matrix dLoss_dY = computeLossDerivative(predicted, expectedOutput, nn.lossFunction); // derivative of the loss function
         Matrix activationDerivative = computeActivationDerivative(rawPredicted, nn.outputLayerAF);
         curLayerDeltas = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // delta = dLoss_dY * derivative of the activation function with the non-activated output as input
+        freeMatrix(dLoss_dY);
+        freeMatrix(activationDerivative);
     }
     return curLayerDeltas;
 }
@@ -241,7 +290,7 @@ Matrix computeActivationDerivative(Matrix outputs, int af) {
     Matrix derivative = createMatrix(outputs.rows, outputs.cols);
     for (int i = 0; i < outputs.rows; i++) {
         for (int j = 0; j < outputs.cols; j++) {
-            derivative.elements[i * derivative.rows + j] = AFDerivative(outputs.elements[i * outputs.rows + j], af);
+            derivative.elements[i * derivative.cols + j] = AFDerivative(outputs.elements[i * outputs.cols + j], af);
         }
     }
     return derivative;
@@ -274,10 +323,11 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, int iLayer) {
 
     if ((iLayer == nn.layerCount - 1) && (nn.numOutputs > 1)) { // try to apply non mutually exclusive multiple clases AFs first.
         activated = multipleOutputActivationFunction(mat, nn.outputLayerAF);
-        if (activated.elements != NULL) {
+        if (activated.elements != nullptr) {
             return activated;
         }
     }
+    
     activated = createMatrix(mat.rows, mat.cols);
     // if they were not selected proceed with mutually exclusive AF.
     for (int i = 0; i < mat.rows; i++) {
@@ -294,8 +344,7 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, int iLayer) {
 }
 
 Matrix multipleOutputActivationFunction(Matrix mat, int af) {
-    Matrix res = createMatrix(0,0);
-    res.elements = NULL;
+    Matrix res = {0,0,nullptr};
 
     switch (af) {
         case NN_SOFTMAX:
@@ -345,6 +394,7 @@ double reluDerivative(double x) {
     return x <= 0 ? 0 : 1;
 }
 
+
 Matrix softmax(Matrix mat) {
     Matrix result = createMatrix(mat.rows, mat.cols);
 
@@ -357,11 +407,12 @@ Matrix softmax(Matrix mat) {
         }
         double sum = 0.0;
         for (int j = 0; j < mat.cols; j++) {
-            result.elements[i * mat.cols + j] = exp(mat.elements[i * mat.cols + j] - max);
-            sum += result.elements[i * mat.cols + j];
+            result.elements[i * result.cols + j] = exp(mat.elements[i * mat.cols + j] - max);
+            sum += result.elements[i * result.cols + j];
         }
+        if(sum< 1e-10)sum += 1e-10; // avoid division by 0
         for (int j = 0; j < mat.cols; j++) {
-            result.elements[i * mat.cols + j] /= sum;
+            result.elements[i * result.cols + j] /= sum;
         }
     }
     return result;
@@ -422,7 +473,9 @@ double computeAverageLossNN(NeuralNetwork nn, Matrix trainingData) {
             for (int j = 0; j < nn.numOutputs; j++) {
                 totalLoss+=loss(prediction.elements[j], expected.elements[j], nn.lossFunction);
             }
-        }    
+        }
+        freeMatrix(input);
+        freeMatrix(expected);
     }
     return totalLoss / numSamples;
 }
@@ -461,13 +514,12 @@ double CCEloss(Matrix predictions, Matrix labels) {
             double predicted = predictions.elements[i * predictions.cols + j];
             double expected = labels.elements[i * labels.cols + j];
 
-            // Ensure predicted values are valid probabilities
-            if (predicted < 0 || predicted > 1) {
-                throw "CCEloss: Predictions must be probabilities (0 < p <= 1).";
-            }
+            // Add epsilon to avoid log(0)
+            predicted = (predicted < 1e-10) ? 1e-10 : predicted;
+            predicted = (predicted > 1.0 - 1e-10) ? 1.0 - 1e-10 : predicted;
 
             // CCE formula: -sum(y * log(p))
-            loss += expected * log(predicted + 1e-10); // Add epsilon to avoid log(0)
+            loss += expected * log(predicted); 
         }
     }
 
@@ -510,6 +562,8 @@ double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
         }
         
         if(predClass == trueClass) correct++;
+        freeMatrix(input);
+        freeMatrix(output);
     }
     return (double)correct/dataset.rows*100;
 }
@@ -527,6 +581,8 @@ double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
         if (predictedLabel == trueLabel) {
             correct++;
         }
+        freeMatrix(input);
+        freeMatrix(expected);
     }
     return (double) correct / numSamples * 100; // Accuracy in percentage
 }
@@ -536,14 +592,9 @@ void saveStateNN(NeuralNetwork nn){
     // !! TO DO implement saveStateNN
 }
 
-
-
-
-
-
 void initializeMatrixRand(Matrix mat) {
     double stddev = sqrt(2.0 / mat.rows);
-    // use different stddev and mean values to implement different initialization methods.
+    // !! TO DO use different stddev and mean values to implement different initialization methods.
 
     for (int i = 0; i < mat.rows; i++) {
         for (int j = 0; j < mat.cols; j++) {

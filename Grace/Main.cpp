@@ -1,41 +1,84 @@
+
+// check memory leaks
+#define _CRTDBG_MAP_ALLOC
+#include <cstdlib>
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new DEBUG_NEW
+#define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
+
+
+
 #include <stdio.h>
 #include "NeuralNetwork.h"
+#include "MNISTLoader.h"
 #include <iostream>
-#include <chrono>
+#include <chrono>;
+
+
 
 using namespace std;
-/*
-void debugNNSize(NeuralNetwork nn) {
-    for (int i = 0; i < nn.layerCount; i++) {
-        cout << "Layer " << i << endl;
-        cout << "Weights: " << nn.weights[i].rows << " rows x " << nn.weights[i].cols << " cols" << endl;
-        cout << "Biases: " << nn.biases[i].rows << " rows x " << nn.biases[i].cols << " cols" << endl;
-        cout << "Weights Gradients: " << nn.weightsGradients[i].rows << " rows x " << nn.weightsGradients[i].cols << " cols" << endl;
-        cout << "Biases Gradients: " << nn.biasesGradients[i].rows << " rows x " << nn.biasesGradients[i].cols << " cols" << endl;
-        cout << "Outputs: " << nn.outputs[i].rows << " rows x " << nn.outputs[i].cols << " cols" << endl;
-        cout << "Activations: " << nn.activations[i].rows << " rows x " << nn.activations[i].cols << " cols" << endl;
-        cout << endl;
-    }
-}
-*/
-
-
 
  void main(){
+
+    
+    // Load and preprocess data
+    char trainFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_train.csv";
+    char testFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_test.csv";
+
+    int numTrainSamples = 60000; // MNIST training set size
+    int numTestSamples = 10000;  // MNIST test set size
+
+    // Load and preprocess training data
+    Matrix trainData = loadMNIST(trainFilePath, numTrainSamples);
+    trainData = normalizeData(trainData);
+    Matrix trainLabels = oneHotEncodeLabels(trainData);
+
+    Matrix trainDataset = prepareDataset(trainData, trainLabels);
+
+    
+    // Load and preprocess test data
+    Matrix testData = loadMNIST(testFilePath, numTestSamples);
+    testData = normalizeData(testData);
+    Matrix testLabels = oneHotEncodeLabels(testData);
+    Matrix testDataset = prepareDataset(testData, testLabels);
+    
+    
+
+    int architecture[] = { 784, 128, 64, 10 };
+
+    NeuralNetwork nn = createNeuralNetwork(architecture, 4);
+
+
+    nn.learningRate = 0.1;
+    nn.hiddenLayersAF = NN_RELU;
+    nn.outputLayerAF = NN_SOFTMAX;
+    nn.lossFunction = NN_CCE;
+    nn.numOutputs = 10;
+
+
+    int batchSize = 32;
+    int epochs=100;
+    
      
-    int architecture[] = {2,4,1};
+    /*
+    int architecture[] = { 2,4,1 };
     NeuralNetwork nn = createNeuralNetwork(architecture, 3);
 
+     
+    Matrix trainDataset = createMatrix(4, 3);
+    double data[] = { 0,0,0,
+                    0,1,1,
+                    1,0,1,
+                    1,1,0 };
 
-    Matrix trainingData = createMatrix(4,3);
-    double data[] = {0,0,0,
-                     0,1,1,
-                     1,0,1,
-                     1,1,0};
+    trainDataset.elements = data;
 
-    trainingData.elements = data;
-    
-    
+
     nn.learningRate = 0.5;
     nn.hiddenLayersAF = NN_RELU;
     nn.outputLayerAF = NN_SIGMOID;
@@ -44,21 +87,30 @@ void debugNNSize(NeuralNetwork nn) {
 
 
     int batchSize = 4;
-    int epochs=1000;
-
+    int epochs = 1000;
+    */
     for(int i=0; i<epochs; ++i){
+        cout << "Epoch " << (i + 1)<< endl;
         auto begin = chrono::high_resolution_clock::now();
 
-        trainNN(nn, trainingData, batchSize);
-        double trainLoss = computeAverageLossNN(nn, trainingData);
-        double trainAccuracy = computeAccuracyNN(nn, trainingData);
-        
+        trainNN(nn, trainDataset, batchSize);
+        double trainLoss = computeAverageLossNN(nn, trainDataset);
+        double trainAccuracy = computeAccuracyNN(nn, trainDataset);
+        cout << "Training Loss : " << trainLoss << ", Accuracy : " << trainAccuracy << endl;
+
+        double testLoss = computeAverageLossNN(nn, testDataset);
+        double testAccuracy = computeAccuracyNN(nn, testDataset);
+        cout << "Test Loss : " << testLoss << ", Accuracy : " << testAccuracy << endl;
+
         auto end = chrono::high_resolution_clock::now();
         auto dur = end - begin;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
 
-        cout << "Epoch " << (i + 1) << " Training Loss: " << trainLoss << ", Accuracy: " << trainAccuracy << "%" << " time: " << ms << endl;
+        cout << "Epoch time: " << ms*1000 << " seconds"<< endl;
     }
+
+    freeNeuralNetwork(nn);
+    freeMatrix(trainDataset);
  }
 
 

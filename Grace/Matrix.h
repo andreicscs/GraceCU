@@ -21,5 +21,7 @@ void fillMatrix(Matrix mat, double value);
 Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols);
 Matrix transposeMatrix(Matrix mat);
 void printMatrix(Matrix mat);
+Matrix copyMatrix(Matrix src);
+double sumMatrix(Matrix src);
 
 #endif // MATRIX_H

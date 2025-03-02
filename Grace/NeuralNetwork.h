@@ -19,9 +19,9 @@ typedef struct {
     Matrix* biases;
     Matrix* weightsGradients;
     Matrix* biasesGradients;
-    Matrix* inputGradients;
     Matrix* outputs;
     Matrix* activations;
+    Matrix* deltas;
     double learningRate;
     int hiddenLayersAF;
     int outputLayerAF;

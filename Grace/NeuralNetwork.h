@@ -12,6 +12,14 @@
 #define NN_MSE 21
 #define NN_BCE 22
 
+
+/*
+*
+*   !! TO DO implement a different struct for NN config options to improve information hiding
+*   and implement a better and more flexible library.
+*
+*/
+
 typedef struct {
     int* architecture;
     int layerCount;

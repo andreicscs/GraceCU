@@ -30,7 +30,7 @@ typedef struct {
     Matrix* outputs;
     Matrix* activations;
     Matrix* deltas;
-    double learningRate;
+    float learningRate;
     int hiddenLayersAF;
     int outputLayerAF;
     int lossFunction;
@@ -42,8 +42,8 @@ void freeNeuralNetwork(NeuralNetwork nn);
 
 void trainNN(NeuralNetwork nn, Matrix trainingData , int batchSize);
 void saveStateNN(NeuralNetwork nn);
-double computeAccuracyNN(NeuralNetwork nn, Matrix dataset);
-double computeAverageLossNN(NeuralNetwork nn, Matrix trainingData);
+float computeAccuracyNN(NeuralNetwork nn, Matrix dataset);
+float computeAverageLossNN(NeuralNetwork nn, Matrix trainingData);
 
 
 #endif // NN_H

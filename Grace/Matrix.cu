@@ -19,20 +19,39 @@
 
 using namespace std;
 
-__global__ void matMul();
+
+__global__ void matMulKernel(float* res, float* a, float* b, int resRows, int resCols, int aCols, int bCols);
 __global__ void matAdd();
+bool isGpuAvailable();
 
 
 
-
-__global__ void matMul() {
-
+__global__ void matMulKernel(float* res, float* a, float* b, int resRows, int resCols, int aCols, int bCols) {
+	int row = blockIdx.y * blockDim.y + threadIdx.y;
+	int col = blockIdx.x * blockDim.x + threadIdx.x;
+	// if the row and col is in bounds.
+	if (row < resRows && col < resCols) {
+		float sum = 0.0;
+		for (int k = 0; k < aCols; k++) {
+			sum += a[row * aCols + k] * b[k * bCols + col];
+		}
+		res[row * resCols + col] = sum;
+	}
 }
 
 __global__ void matAdd() {
 
 }
 
+
+bool isGpuAvailable() {
+	int deviceCount = 0;
+	cudaError_t error = cudaGetDeviceCount(&deviceCount);
+	if (error != cudaSuccess || deviceCount == 0) {
+		return false;
+	}
+	return true; // TODO CHDEBUG
+}
 
 Matrix copyMatrix(Matrix src) {
 	Matrix dest = createMatrix(src.rows, src.cols);
@@ -47,7 +66,7 @@ Matrix createMatrix(int rows, int cols) {
 	
 	mat.rows = rows;
 	mat.cols = cols;
-	mat.elements = (double*)malloc(rows * cols * sizeof(double));
+	mat.elements = (float*)malloc(rows * cols * sizeof(float));
 	if (mat.elements == NULL)throw "createMatrix: malloc failed";
 
 	return mat;
@@ -65,16 +84,53 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 	if (a.cols != b.rows) {
 		throw "multiply: Matrix dimensions do not match for multiplication.";
 	}
-	Matrix result = createMatrix(a.rows, b.cols);
-	fillMatrix(result, 0);
 
-	for (int i = 0; i < a.rows; i++) {
-		for (int j = 0; j < b.cols; j++) {
-			for (int k = 0; k < a.cols; k++) {
-				result.elements[i * result.cols + j] += a.elements[i * a.cols + k] * b.elements[k * b.cols + j];
+	Matrix result;
+
+
+	if (true) { // to do, cuda computations are slow because of way too frequent memory operations
+		result = createMatrix(a.rows, b.cols);
+		fillMatrix(result, 0);
+
+		for (int i = 0; i < a.rows; i++) {
+			for (int j = 0; j < b.cols; j++) {
+				for (int k = 0; k < a.cols; k++) {
+					result.elements[i * result.cols + j] += a.elements[i * a.cols + k] * b.elements[k * b.cols + j];
+				}
 			}
 		}
+		return result;
 	}
+	result = createMatrix(a.rows, b.cols);
+	//result = {a.rows, b.cols, nullptr};
+	
+	float* dA;
+	float* dB;
+	float* dRes;
+
+	// allocate memory on device
+	cudaMalloc(&dA, (size_t)(a.rows * a.cols * sizeof(float)));
+	cudaMalloc(&dB, (size_t)(b.rows * b.cols * sizeof(float)));
+	cudaMalloc(&dRes, (size_t)(result.rows * result.cols * sizeof(float)));
+
+	// copy memory to device
+	cudaMemcpy(dA, a.elements, a.rows*a.cols*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(dB, b.elements, b.rows * b.cols * sizeof(float), cudaMemcpyHostToDevice);
+
+	// launch kernel
+	dim3 blockDim(16,16);
+	dim3 gridDim((b.cols + blockDim.x - 1) / blockDim.x, (a.rows + blockDim.y - 1) / blockDim.y); // blockDim - 1 to round up division in case cols and rows are not a multiple of 16
+	matMulKernel <<<gridDim, blockDim>>> (dRes, dA, dB, result.rows, result.cols, a.cols, b.cols);
+
+
+	// copy result back to host
+	cudaMemcpy(result.elements, dRes, result.rows * result.cols * sizeof(float), cudaMemcpyDeviceToHost);
+
+	// free memory
+	cudaFree(dA);
+	cudaFree(dB);
+	cudaFree(dRes);
+
 	return result;
 }
 
@@ -92,7 +148,7 @@ Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
 	return result;
 }
 
-void scaleMatrixInPlace(Matrix mat, double scalar) {
+void scaleMatrixInPlace(Matrix mat, float scalar) {
 	for (int i = 0; i < mat.rows; i++) {
 		for (int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] *= scalar;
@@ -100,7 +156,7 @@ void scaleMatrixInPlace(Matrix mat, double scalar) {
 	}
 }
 
-Matrix scaleMatrix(Matrix mat, double scalar) {
+Matrix scaleMatrix(Matrix mat, float scalar) {
 	Matrix result = createMatrix(mat.rows, mat.cols);
 	for (int i = 0; i < mat.rows; i++) {
 		for (int j = 0; j < mat.cols; j++) {
@@ -160,7 +216,7 @@ Matrix subtractMatrix(Matrix a, Matrix b) {
 	return result;
 }
 
-void fillMatrix(Matrix mat, double value) {
+void fillMatrix(Matrix mat, float value) {
 	for (int i = 0; i < mat.rows; i++) {
 		for (int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] = value;
@@ -202,8 +258,8 @@ void printMatrix(Matrix mat) {
 	}
 }
 
-double sumMatrix(Matrix src) {
-	double result = 0.0;
+float sumMatrix(Matrix src) {
+	float result = 0.0;
 	for (int i = 0; i < src.rows; ++i) {
 		for (int j = 0; j < src.cols; ++j) {
 			result += src.elements[i * src.cols + j];

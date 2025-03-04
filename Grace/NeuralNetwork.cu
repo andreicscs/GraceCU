@@ -29,31 +29,31 @@ void forward(NeuralNetwork nn, Matrix input);
 void backPropagation(NeuralNetwork nn, Matrix expectedOutput);
 Matrix applyActivation(NeuralNetwork nn, Matrix matrix, int iLayer);
 Matrix multipleOutputActivationFunction(Matrix mat, int af);
-double activationFunction(double x, int af);
+float activationFunction(float x, int af);
 Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput);
 Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf);
-double AFDerivative(double x, int af);
+float AFDerivative(float x, int af);
 Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected);
 Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf);
-double lossDerivative(double output, double expectedOutput, int lf);
-double BCEloss(double output, double expectedOutput);
-double BCElossDerivative(double output, double expectedOutput);
-double MSEloss(double output, double expectedOutput);
-double MSElossDerivative(double output, double expectedOutput);
+float lossDerivative(float output, float expectedOutput, int lf);
+float BCEloss(float output, float expectedOutput);
+float BCElossDerivative(float output, float expectedOutput);
+float MSEloss(float output, float expectedOutput);
+float MSElossDerivative(float output, float expectedOutput);
 void initializeMatrixRand(Matrix mat);
 Matrix softmax(Matrix mat);
-double reluDerivative(double x);
-double relu(double x);
-double sigmoid(double x);
+float reluDerivative(float x);
+float relu(float x);
+float sigmoid(float x);
 void updateWeightsAndBiases(NeuralNetwork nn, int batchSize);
-double loss(double output, double expectedOutput, int lf);
-double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf);
-double CCEloss(Matrix predictions, Matrix labels);
-double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
-double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset);
-double randomNormal(double mean, double stddev);
+float loss(float output, float expectedOutput, int lf);
+float multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf);
+float CCEloss(Matrix predictions, Matrix labels);
+float computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
+float computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset);
+float randomNormal(float mean, float stddev);
 
 
 
@@ -96,7 +96,7 @@ NeuralNetwork createNeuralNetwork(int* architecture, int layerCount) {
         fillMatrix(nn.weightsGradients[i], 0);
         fillMatrix(nn.biasesGradients[i], 0);
         fillMatrix(nn.deltas[i], 0);
-        double sum = 0.0;
+        float sum = 0.0;
         for (int j = 0; j < nn.weights[i].rows * nn.weights[i].cols; ++j) {
             sum += fabs(nn.weights[i].elements[j]);
         }
@@ -182,7 +182,8 @@ void forward(NeuralNetwork nn, Matrix input) {
     for (int i = 1; i < nn.layerCount; ++i) {
         // free previous activations[i] and outputs[i]
         if (nn.activations[i].elements != nullptr) {
-            freeMatrix(nn.activations[i]);
+            freeMatrix(
+                nn.activations[i]);
         }
         if (nn.outputs[i].elements != nullptr) {
             freeMatrix(nn.outputs[i]);
@@ -305,7 +306,7 @@ Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf) {
 }
 
 
-double lossDerivative(double output, double expectedOutput, int lf) {
+float lossDerivative(float output, float expectedOutput, int lf) {
     switch (lf) {
         case NN_MSE:
             return MSElossDerivative(output, expectedOutput);
@@ -355,7 +356,7 @@ Matrix multipleOutputActivationFunction(Matrix mat, int af) {
     return res;
 }
 
-double activationFunction(double x, int af) {
+float activationFunction(float x, int af) {
     switch (af) {
         case NN_SIGMOID:
             return sigmoid(x);
@@ -368,11 +369,11 @@ double activationFunction(double x, int af) {
     return x;
 }
 
-double AFDerivative(double x, int af) {
+float AFDerivative(float x, int af) {
     switch (af) {
         case NN_SIGMOID:
         {
-            double sig = sigmoid(x);
+            float sig = sigmoid(x);
             return sig * (1.0 - sig);
         }
         case NN_RELU:
@@ -383,14 +384,14 @@ double AFDerivative(double x, int af) {
     return 1;
 }
 
-double sigmoid(double x) {
+float sigmoid(float x) {
     return 1.0 / (1.0 + exp(-x));
 }
-double relu(double x) {
+float relu(float x) {
     return 0 >= x ? 0 : x; // max between 0 and x
 }
 
-double reluDerivative(double x) {
+float reluDerivative(float x) {
     return x <= 0 ? 0 : 1;
 }
 
@@ -399,13 +400,13 @@ Matrix softmax(Matrix mat) {
     Matrix result = createMatrix(mat.rows, mat.cols);
 
     for (int i = 0; i < mat.rows; i++) {
-        double max = mat.elements[i * mat.cols];
+        float max = mat.elements[i * mat.cols];
         for (int j = 1; j < mat.cols; j++) {
             if (mat.elements[i * mat.cols + j] > max) {
                 max = mat.elements[i * mat.cols + j];
             }
         }
-        double sum = 0.0;
+        float sum = 0.0;
         for (int j = 0; j < mat.cols; j++) {
             result.elements[i * result.cols + j] = exp(mat.elements[i * mat.cols + j] - max);
             sum += result.elements[i * result.cols + j];
@@ -424,28 +425,28 @@ Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected) {
     return deltas;
 }
 
-double BCEloss(double output, double expectedOutput) {
+float BCEloss(float output, float expectedOutput) {
     // Clip output to avoid log(0)
-    double epsilon = 1e-9;  // Small value to prevent log(0)
+    float epsilon = 1e-9;  // Small value to prevent log(0)
     output = epsilon >= (1 - epsilon <= output ? 1 - epsilon : output) ? epsilon : (1 - epsilon <= output ? 1 - epsilon : output);
     return -(expectedOutput * log(output) + (1 - expectedOutput) * log(1 - output));
 }
-double BCElossDerivative(double output, double expectedOutput) {
+float BCElossDerivative(float output, float expectedOutput) {
     // Clip output to avoid division by zero
-    double epsilon = 1e-9;
+    float epsilon = 1e-9;
     output = epsilon >= (1 - epsilon <= output ? 1 - epsilon : output) ? epsilon : (1 - epsilon <= output ? 1 - epsilon : output);
     return (output - expectedOutput) / (output * (1 - output));
 }
 
-double MSEloss(double output, double expectedOutput) {
-    double error = 0;
+float MSEloss(float output, float expectedOutput) {
+    float error = 0;
     error = (output - expectedOutput);
     error = error * error;
     return error;
 }
 
-double MSElossDerivative(double output, double expectedOutput) {
-    double error = 0;
+float MSElossDerivative(float output, float expectedOutput) {
+    float error = 0;
     error = output - expectedOutput;
     return error;
 }
@@ -453,9 +454,9 @@ double MSElossDerivative(double output, double expectedOutput) {
 
 
 
-double computeAverageLossNN(NeuralNetwork nn, Matrix trainingData) {
+float computeAverageLossNN(NeuralNetwork nn, Matrix trainingData) {
     int numSamples = trainingData.rows;
-    double totalLoss = 0.0;
+    float totalLoss = 0.0;
     
     for (int i = 0; i < numSamples; i++) {
         // Split input and expected output
@@ -480,7 +481,7 @@ double computeAverageLossNN(NeuralNetwork nn, Matrix trainingData) {
     return totalLoss / numSamples;
 }
 
-double loss(double output, double expectedOutput, int lf) {
+float loss(float output, float expectedOutput, int lf) {
     switch(lf) {
     case NN_MSE:
         return MSEloss(output,expectedOutput);
@@ -492,7 +493,7 @@ double loss(double output, double expectedOutput, int lf) {
     return MSEloss(output,expectedOutput);
 }
 
-double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf) {
+float multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf) {
     switch(lf) {
     case NN_CCE:
         return CCEloss(output,expectedOutput);
@@ -503,16 +504,16 @@ double multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf) {
 }
 
 
-double CCEloss(Matrix predictions, Matrix labels) {
+float CCEloss(Matrix predictions, Matrix labels) {
     if (predictions.rows != labels.rows || predictions.cols != labels.cols) {
         throw "CCEloss: Predictions and labels must have the same dimensions.";
     }
 
-    double loss = 0.0;
+    float loss = 0.0;
     for (int i = 0; i < predictions.rows; i++) {
         for (int j = 0; j < predictions.cols; j++) {
-            double predicted = predictions.elements[i * predictions.cols + j];
-            double expected = labels.elements[i * labels.cols + j];
+            float predicted = predictions.elements[i * predictions.cols + j];
+            float expected = labels.elements[i * labels.cols + j];
 
             // Add epsilon to avoid log(0)
             predicted = (predicted < 1e-10) ? 1e-10 : predicted;
@@ -527,7 +528,7 @@ double CCEloss(Matrix predictions, Matrix labels) {
     return -loss / predictions.rows;
 }
 
-double computeAccuracyNN(NeuralNetwork nn, Matrix dataset) {
+float computeAccuracyNN(NeuralNetwork nn, Matrix dataset) {
     if(nn.numOutputs>1) {
         return computeMultiClassAccuracy(nn, dataset);
     }else {
@@ -535,7 +536,7 @@ double computeAccuracyNN(NeuralNetwork nn, Matrix dataset) {
     }
 }
 
-double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
+float computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
     int correct = 0;
     for(int i=0; i<dataset.rows; i++) {
         Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - nn.numOutputs);
@@ -545,7 +546,7 @@ double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
         Matrix pred = nn.activations[nn.layerCount-1];
         
         int predClass = 0;
-        double maxVal = pred.elements[0];
+        float maxVal = pred.elements[0];
         for(int j=1; j< nn.numOutputs; j++) {
             if(pred.elements[j] > maxVal) {
                 maxVal = pred.elements[j];
@@ -565,17 +566,17 @@ double computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
         freeMatrix(input);
         freeMatrix(output);
     }
-    return (double)correct/dataset.rows*100;
+    return (float)correct/dataset.rows*100;
 }
 
-double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
+float computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
     int numSamples = dataset.rows;
     int correct = 0;
     for (int i = 0; i < numSamples; i++) {
         Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - 1);
         Matrix expected = getSubMatrix(dataset, i, dataset.cols - 1, 1, 1);
         forward(nn, input);
-        double prediction = nn.activations[nn.layerCount - 1].elements[0];
+        float prediction = nn.activations[nn.layerCount - 1].elements[0];
         int predictedLabel = (prediction >= 0.5) ? 1 : 0;
         int trueLabel = (int) expected.elements[0];
         if (predictedLabel == trueLabel) {
@@ -584,7 +585,7 @@ double computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
         freeMatrix(input);
         freeMatrix(expected);
     }
-    return (double) correct / numSamples * 100; // Accuracy in percentage
+    return (float) correct / numSamples * 100; // Accuracy in percentage
 }
 
 
@@ -593,7 +594,7 @@ void saveStateNN(NeuralNetwork nn){
 }
 
 void initializeMatrixRand(Matrix mat) {
-    double stddev = sqrt(2.0 / mat.rows);
+    float stddev = sqrt(2.0 / mat.rows);
     // !! TO DO use different stddev and mean values to implement different initialization methods.
 
     for (int i = 0; i < mat.rows; i++) {
@@ -603,13 +604,13 @@ void initializeMatrixRand(Matrix mat) {
     }
 }
 
-double randomNormal(double mean, double stddev) {
-    double u1 = (double)((double)rand() / (double)RAND_MAX);
-    double u2 = (double)((double)rand() / (double)RAND_MAX);
+float randomNormal(float mean, float stddev) {
+    float u1 = (float)((float)rand() / (float)RAND_MAX);
+    float u2 = (float)((float)rand() / (float)RAND_MAX);
 
     if (u1 < 1e-10) u1= 1e-10; // avoid log(0) errors
 
-    double z0 = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+    float z0 = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
     
     return mean + stddev * z0;
 }

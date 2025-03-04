@@ -71,7 +71,7 @@ using namespace std;
 
      
     Matrix trainDataset = createMatrix(4, 3);
-    double data[] = { 0,0,0,
+    float data[] = { 0,0,0,
                     0,1,1,
                     1,0,1,
                     1,1,0 };
@@ -94,19 +94,19 @@ using namespace std;
         auto begin = chrono::high_resolution_clock::now();
 
         trainNN(nn, trainDataset, batchSize);
-        double trainLoss = computeAverageLossNN(nn, trainDataset);
-        double trainAccuracy = computeAccuracyNN(nn, trainDataset);
+        float trainLoss = computeAverageLossNN(nn, trainDataset);
+        float trainAccuracy = computeAccuracyNN(nn, trainDataset);
         cout << "Training Loss : " << trainLoss << ", Accuracy : " << trainAccuracy << endl;
 
-        double testLoss = computeAverageLossNN(nn, testDataset);
-        double testAccuracy = computeAccuracyNN(nn, testDataset);
+        float testLoss = computeAverageLossNN(nn, testDataset);
+        float testAccuracy = computeAccuracyNN(nn, testDataset);
         cout << "Test Loss : " << testLoss << ", Accuracy : " << testAccuracy << endl;
 
         auto end = chrono::high_resolution_clock::now();
         auto dur = end - begin;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
 
-        cout << "Epoch time: " << ms*1000 << " seconds"<< endl;
+        cout << "Epoch time: " << ms/1000 << " seconds"<< endl;
     }
 
     freeNeuralNetwork(nn);

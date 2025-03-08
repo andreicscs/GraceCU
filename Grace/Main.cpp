@@ -17,7 +17,7 @@
 #include "NeuralNetwork.h"
 #include "MNISTLoader.h"
 #include <iostream>
-#include <chrono>;
+#include <chrono>
 
 
 
@@ -51,46 +51,23 @@ using namespace std;
 
     int architecture[] = { 784, 128, 64, 10 };
 
-    NeuralNetwork nn = createNeuralNetwork(architecture, 4);
 
+    NNConfig config;
 
-    nn.learningRate = 0.1;
-    nn.hiddenLayersAF = NN_RELU;
-    nn.outputLayerAF = NN_SOFTMAX;
-    nn.lossFunction = NN_CCE;
-    nn.numOutputs = 10;
+    config.learningRate = 0.1f;
+    config.hiddenLayersAF = NN_RELU;
+    config.outputLayerAF = NN_SOFTMAX;
+    config.lossFunction = NN_CCE;
+
+    NeuralNetwork *nn = createNeuralNetwork(architecture, 4, config);
 
 
     int batchSize = 32;
     int epochs=100;
     
-     
-    /*
-    int architecture[] = { 2,4,1 };
-    NeuralNetwork nn = createNeuralNetwork(architecture, 3);
-
-     
-    Matrix trainDataset = createMatrix(4, 3);
-    float data[] = { 0,0,0,
-                    0,1,1,
-                    1,0,1,
-                    1,1,0 };
-
-    trainDataset.elements = data;
-
-
-    nn.learningRate = 0.5;
-    nn.hiddenLayersAF = NN_RELU;
-    nn.outputLayerAF = NN_SIGMOID;
-    nn.lossFunction = NN_BCE;
-    nn.numOutputs = 1;
-
-
-    int batchSize = 4;
-    int epochs = 1000;
-    */
     for(int i=0; i<epochs; ++i){
         cout << "Epoch " << (i + 1)<< endl;
+        
         auto begin = chrono::high_resolution_clock::now();
 
         trainNN(nn, trainDataset, batchSize);
@@ -107,6 +84,7 @@ using namespace std;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
 
         cout << "Epoch time: " << ms/1000 << " seconds"<< endl;
+        
     }
 
     freeNeuralNetwork(nn);

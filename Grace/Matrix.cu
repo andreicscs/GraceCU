@@ -50,7 +50,7 @@ bool isGpuAvailable() {
 	if (error != cudaSuccess || deviceCount == 0) {
 		return false;
 	}
-	return true; // TODO CHDEBUG
+	return true;
 }
 
 Matrix copyMatrix(Matrix src) {
@@ -88,7 +88,7 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 	Matrix result;
 
 
-	if (true) { // to do, cuda computations are slow because of way too frequent memory operations
+	if (true) { // !! TO DO cuda computations are slow because of way too frequent memory operations
 		result = createMatrix(a.rows, b.cols);
 		fillMatrix(result, 0);
 
@@ -114,7 +114,7 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 	cudaMalloc(&dRes, (size_t)(result.rows * result.cols * sizeof(float)));
 
 	// copy memory to device
-	cudaMemcpy(dA, a.elements, a.rows*a.cols*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(dA, a.elements, a.rows*a.cols * sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(dB, b.elements, b.rows * b.cols * sizeof(float), cudaMemcpyHostToDevice);
 
 	// launch kernel
@@ -135,7 +135,7 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 }
 
 Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
-	// Check if matrices have the same dimensions
+	// check if matrices have the same dimensions
 	if (a.rows != b.rows || a.cols != b.cols) {
 		throw "multiplyElementWise: Matrices must have the same dimensions for element-wise multiplication.";
 	}

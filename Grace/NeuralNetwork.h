@@ -3,47 +3,29 @@
 
 #include "Matrix.h"
 
-
-
 #define NN_SIGMOID 0
 #define NN_RELU 1
 #define NN_SOFTMAX 10
 #define NN_CCE 20
 #define NN_MSE 21
 #define NN_BCE 22
+#define NN_epsilon 1e-10f // small value
+#define NN_invalidP nullptr
 
-
-/*
-*
-*   !! TO DO implement a different struct for NN config options to improve information hiding
-*   and implement a better and more flexible library.
-*
-*/
-
-typedef struct {
-    int* architecture;
-    int layerCount;
-    Matrix* weights;
-    Matrix* biases;
-    Matrix* weightsGradients;
-    Matrix* biasesGradients;
-    Matrix* outputs;
-    Matrix* activations;
-    Matrix* deltas;
+struct NeuralNetwork;
+struct NNConfig {
     float learningRate;
     int hiddenLayersAF;
     int outputLayerAF;
     int lossFunction;
-    int numOutputs;
-} NeuralNetwork;
+};
 
-NeuralNetwork createNeuralNetwork(int* architecture, int layerCount);
-void freeNeuralNetwork(NeuralNetwork nn);
+NeuralNetwork* createNeuralNetwork(int *architecture, int layerCount, NNConfig config);
+void freeNeuralNetwork(NeuralNetwork *nn);
 
-void trainNN(NeuralNetwork nn, Matrix trainingData , int batchSize);
-void saveStateNN(NeuralNetwork nn);
-float computeAccuracyNN(NeuralNetwork nn, Matrix dataset);
-float computeAverageLossNN(NeuralNetwork nn, Matrix trainingData);
-
+void trainNN(NeuralNetwork *nn, Matrix trainingData, int batchSize);
+void saveStateNN(NeuralNetwork *nn);
+float computeAccuracyNN(NeuralNetwork *nn, Matrix dataset);
+float computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData);
 
 #endif // NN_H

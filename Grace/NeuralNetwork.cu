@@ -23,8 +23,8 @@ using namespace std;
 
 
 struct NeuralNetwork {
-    int* architecture;
-    int layerCount;
+    const int* architecture;
+    unsigned int layerCount;
     Matrix* weights;
     Matrix* biases;
     Matrix* weightsGradients;
@@ -32,7 +32,7 @@ struct NeuralNetwork {
     Matrix* outputs;
     Matrix* activations;
     Matrix* deltas;
-    int numOutputs;
+    unsigned int numOutputs;
     NNConfig config;
 };
 
@@ -68,7 +68,9 @@ float randomNormal(float mean, float stddev);
 float sigmoidDerivative(float sig);
 
 
-NeuralNetwork* createNeuralNetwork(int* architecture, int layerCount, NNConfig config) {
+NeuralNetwork* createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config) {
+    if (architecture == NN_invalidP) throw "createNeuralNetwork: invalid arguments";
+
     NeuralNetwork* nn = (NeuralNetwork*) malloc(sizeof(NeuralNetwork));
     if (nn == NN_invalidP) throw "createNeuralNetwork: malloc failed for NeuralNetwork";
     
@@ -131,7 +133,7 @@ NeuralNetwork* createNeuralNetwork(int* architecture, int layerCount, NNConfig c
 }
 
 void freeNeuralNetwork(NeuralNetwork *nn) {
-    if (nn == NN_invalidP)return;
+    if (nn == NN_invalidP) throw "freeNeuralNetwork: invalid argument";
     // free all matrices inside matrices arrays
     for (int i = 0; i < nn->layerCount; ++i) {
         if (nn->outputs[i].elements != NN_invalidP) freeMatrix(nn->outputs[i]);
@@ -157,8 +159,17 @@ void freeNeuralNetwork(NeuralNetwork *nn) {
     free(nn);
 }
 
-void trainNN(NeuralNetwork *nn, Matrix trainingData, int batchSize) {
+
+
+
+
+
+
+
+void trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize) {
+    if (nn == NN_invalidP) throw "trainNN: invalid arguments";
     int trainCount = trainingData.rows;
+    if (batchSize > trainCount) throw "trainNN: invalid arguments";
     for (int i = 0; i < trainCount; ++i) {
         Matrix input = getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn->numOutputs);
         Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn->numOutputs, 1, nn->numOutputs);
@@ -383,6 +394,7 @@ float activationFunction(float x, int af) {
 }
 
 float computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData) {
+    if (nn == NN_invalidP) throw "computeAverageLossNN: invalid arguments";
     int numSamples = trainingData.rows;
     float totalLoss = 0.0;
     
@@ -430,6 +442,7 @@ float loss(float output, float expectedOutput, int lf) {
 }
 
 float computeAccuracyNN(NeuralNetwork *nn, Matrix dataset) {
+    if (nn == NN_invalidP) throw "computeAccuracyNN: invalid arguments";
     if(nn->numOutputs>1) {
         return computeMultiClassAccuracy(*nn, dataset);
     }else {
@@ -493,8 +506,14 @@ void saveStateNN(NeuralNetwork *nn){
     // !! TO DO implement saveStateNN
 }
 
+NeuralNetwork* loadStateNN(const char* filename) {
+    // !! TO DO implement loadStateNN
+}
 
-
+Matrix predictNN(NeuralNetwork* nn, Matrix input) {
+    forward(*nn, input);
+    return nn->activations[nn->layerCount - 1];
+}
 
 
 void initializeMatrixRand(Matrix mat, float mean, float stddev) {

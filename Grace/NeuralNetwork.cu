@@ -228,24 +228,26 @@ void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
         }
     }
 
+    // compute deltas for last layer.
     nn.deltas[nn.layerCount - 2] = computeOutputLayerDeltas(nn, expectedOutput);
 
     // propagate error backward
     for (unsigned int i = nn.layerCount - 1; i > 0; --i) {
         Matrix transposedActivations = transposeMatrix(nn.activations[i - 1]);
-        Matrix weightGradients = multiplyMatrix(transposedActivations, nn.deltas[i-1]);  // compute weight gradients for layer i Weight gradients = activations[i-1]^T * deltas[i-1]
+        Matrix weightGradients = multiplyMatrix(transposedActivations, nn.deltas[i-1]);  // compute weight gradients for layer, Weight gradients = activations[i-1]^T * deltas[i-1]
         addMatrixInPlace(nn.weightsGradients[i-1], weightGradients);
 
         // free intermediate matrices
         freeMatrix(transposedActivations);
         freeMatrix(weightGradients);
 
-        // compute bias gradients (sum over batch)
+        // compute bias gradients
         Matrix biasGradients = copyMatrix(nn.deltas[i-1]);
         addMatrixInPlace(nn.biasesGradients[i-1], biasGradients);
         freeMatrix(biasGradients);
 
         // compute deltas for previous layer (if not input layer)
+        // delta[l] = (W[l+1]^T * delta[l+1]) ⊙ af'(z[l])
         if (i > 1) {
             Matrix transposedWeights = transposeMatrix(nn.weights[i-1]);
             Matrix inputGradients = multiplyMatrix(nn.deltas[i-1], transposedWeights);	// input gradients = deltas[i-1] * weights[i]^T
@@ -289,7 +291,7 @@ Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput) {
     else { // single output
         Matrix dLoss_dY = computeLossDerivative(predicted, expectedOutput, nn.config.lossFunction); // derivative of the loss function
         Matrix activationDerivative = computeActivationDerivative(rawPredicted, nn.config.outputLayerAF);
-        curLayerDeltas = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // delta = dLoss_dY * derivative of the activation function with the non-activated output as input
+        curLayerDeltas = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // delta = dLoss_dY * derivative of the activation function with respect to the non-activated output
         freeMatrix(dLoss_dY);
         freeMatrix(activationDerivative);
     }
@@ -627,15 +629,14 @@ float CCEloss(Matrix predictions, Matrix labels) {
             float predicted = predictions.elements[i * predictions.cols + j];
             float expected = labels.elements[i * labels.cols + j];
 
-            // add NN_epsilon to avoid log(0)
+            // avoid log(0)
             predicted = (predicted < NN_epsilon) ? NN_epsilon : predicted;
             predicted = (predicted > 1.0f - NN_epsilon) ? 1.0f - NN_epsilon : predicted;
 
-            // CCE formula: -sum(y * log(p))
             loss += expected * log(predicted);
         }
     }
-
+    // CCE formula: -sum(y * log(p))
     // average the loss over all samples
     return -loss / predictions.rows;
 }

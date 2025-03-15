@@ -1,31 +1,19 @@
-
 // check memory leaks
 #define _CRTDBG_MAP_ALLOC
-#include <cstdlib>
 #include <crtdbg.h>
 
 #ifdef _DEBUG
-#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#define new DEBUG_NEW
 #define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
-
-
-
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include "NeuralNetwork.h"
 #include "MNISTLoader.h"
-#include <iostream>
-#include <chrono>
 
 
-
-using namespace std;
-
- void main(){
-
-    
+ int main(){
     // Load and preprocess data
     char trainFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_train.csv";
     char testFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_test.csv";
@@ -53,42 +41,59 @@ using namespace std;
 
 
     NNConfig config;
-
     config.learningRate = 0.1f;
-    config.hiddenLayersAF = NN_RELU;
-    config.outputLayerAF = NN_SOFTMAX;
-    config.lossFunction = NN_CCE;
+    config.weightInitializerF = NN_INITIALIZATION_HE;
+    config.hiddenLayersAF = NN_ACTIVATION_RELU;
+    config.outputLayerAF = NN_ACTIVATION_SOFTMAX;
+    config.lossFunction = NN_LOSS_CCE;
 
-    NeuralNetwork *nn = createNeuralNetwork(architecture, 4, config);
-
-
-    int batchSize = 32;
-    int epochs=100;
+    NeuralNetwork* nn;
     
+    NNStatus err;
+    
+    err=createNeuralNetwork(architecture, 4, config, &nn);
+    if (err!=0) {
+        printf("createNeuralNetowork: %s\n", NNStatusToString(err));
+        return -1;
+    }
+   
+    int batchSize = 32;
+    int epochs=1;
+    
+    float trainLoss;
+    float trainAccuracy;
     for(int i=0; i<epochs; ++i){
-        cout << "Epoch " << (i + 1)<< endl;
+        printf("Epoch %d\n",i+1);
         
-        auto begin = chrono::high_resolution_clock::now();
+        clock_t begin = clock();
 
-        trainNN(nn, trainDataset, batchSize);
-        float trainLoss = computeAverageLossNN(nn, trainDataset);
-        float trainAccuracy = computeAccuracyNN(nn, trainDataset);
-        cout << "Training Loss : " << trainLoss << ", Accuracy : " << trainAccuracy << endl;
+        err=trainNN(nn, trainDataset, batchSize);
+        if (err != 0) {
+            printf("trainNN: %s\n", NNStatusToString(err));
+            return -1;
+        }
+        computeAverageLossNN(nn, trainDataset, &trainLoss);
+        computeAccuracyNN(nn, trainDataset, &trainAccuracy);
+        printf("Training Loss: %f, Accuracy: %f\n", trainLoss, trainAccuracy);
 
-        float testLoss = computeAverageLossNN(nn, testDataset);
-        float testAccuracy = computeAccuracyNN(nn, testDataset);
-        cout << "Test Loss : " << testLoss << ", Accuracy : " << testAccuracy << endl;
-
-        auto end = chrono::high_resolution_clock::now();
-        auto dur = end - begin;
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-
-        cout << "Epoch time: " << ms/1000 << " seconds"<< endl;
+        computeAverageLossNN(nn, testDataset, &trainLoss);
+        computeAccuracyNN(nn, testDataset, &trainAccuracy);
+        printf("Test Loss: %f, Accuracy: %f\n", trainLoss, trainAccuracy);
         
+        clock_t end = clock();
+        float dur = (float)(end - begin) / CLOCKS_PER_SEC;
+        
+        printf("Epoch time: %f, seconds\n", dur);        
     }
 
-    freeNeuralNetwork(nn);
+    err=freeNeuralNetwork(nn);
+    if (err != 0) {
+        printf("freeNeuralNetwork: %s\n", NNStatusToString(err));
+        return -1;
+    }
     freeMatrix(trainDataset);
+
+    return 0;
  }
 
 

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-Matrix loadMNIST(const std::string& filePath, int numSamples) {
+Matrix loadMNIST(const char* filePath, int numSamples) {
     Matrix dataset = createMatrix(numSamples, 785); // 784 pixels + 1 label
 
     std::ifstream file(filePath);

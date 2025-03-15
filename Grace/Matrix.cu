@@ -1,24 +1,24 @@
-
 // check memory leaks
 #define _CRTDBG_MAP_ALLOC
-#include <cstdlib>
 #include <crtdbg.h>
 
 #ifdef _DEBUG
-#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#define new DEBUG_NEW
 #define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
-#include "Matrix.h"
 #include <stdlib.h>
-#include <iostream>
+#include <stdio.h>
+#include "Matrix.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 
-using namespace std;
-
+/**
+* TODO list:
+*   implement error handling:
+*   implement cuda kernels for gpu parallelied computations.
+*
+*/
 
 __global__ void matMulKernel(float* res, float* a, float* b, int resRows, int resCols, int aCols, int bCols);
 __global__ void matAdd();
@@ -32,7 +32,7 @@ __global__ void matMulKernel(float* res, float* a, float* b, int resRows, int re
 	// if the row and col is in bounds.
 	if (row < resRows && col < resCols) {
 		float sum = 0.0;
-		for (int k = 0; k < aCols; k++) {
+		for (unsigned int k = 0; k < aCols; k++) {
 			sum += a[row * aCols + k] * b[k * bCols + col];
 		}
 		res[row * resCols + col] = sum;
@@ -55,7 +55,7 @@ bool isGpuAvailable() {
 
 Matrix copyMatrix(Matrix src) {
 	Matrix dest = createMatrix(src.rows, src.cols);
-	for (int i = 0; i < src.rows * src.cols; ++i) {
+	for (unsigned int i = 0; i < src.rows * src.cols; ++i) {
 		dest.elements[i] = src.elements[i];
 	}
 	return dest;
@@ -92,9 +92,9 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 		result = createMatrix(a.rows, b.cols);
 		fillMatrix(result, 0);
 
-		for (int i = 0; i < a.rows; i++) {
-			for (int j = 0; j < b.cols; j++) {
-				for (int k = 0; k < a.cols; k++) {
+		for (unsigned int i = 0; i < a.rows; i++) {
+			for (unsigned int j = 0; j < b.cols; j++) {
+				for (unsigned int k = 0; k < a.cols; k++) {
 					result.elements[i * result.cols + j] += a.elements[i * a.cols + k] * b.elements[k * b.cols + j];
 				}
 			}
@@ -140,8 +140,8 @@ Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
 		throw "multiplyElementWise: Matrices must have the same dimensions for element-wise multiplication.";
 	}
 	Matrix result = createMatrix(a.rows, a.cols);
-	for (int i = 0; i < a.rows; i++) {
-		for (int j = 0; j < a.cols; j++) {
+	for (unsigned int i = 0; i < a.rows; i++) {
+		for (unsigned int j = 0; j < a.cols; j++) {
 			result.elements[i * result.cols + j] = a.elements[i * a.cols + j] * b.elements[i * b.cols + j];
 		}
 	}
@@ -149,8 +149,8 @@ Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
 }
 
 void scaleMatrixInPlace(Matrix mat, float scalar) {
-	for (int i = 0; i < mat.rows; i++) {
-		for (int j = 0; j < mat.cols; j++) {
+	for (unsigned int i = 0; i < mat.rows; i++) {
+		for (unsigned int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] *= scalar;
 		}
 	}
@@ -158,8 +158,8 @@ void scaleMatrixInPlace(Matrix mat, float scalar) {
 
 Matrix scaleMatrix(Matrix mat, float scalar) {
 	Matrix result = createMatrix(mat.rows, mat.cols);
-	for (int i = 0; i < mat.rows; i++) {
-		for (int j = 0; j < mat.cols; j++) {
+	for (unsigned int i = 0; i < mat.rows; i++) {
+		for (unsigned int j = 0; j < mat.cols; j++) {
 			result.elements[i * result.cols + j] = mat.elements[i * mat.cols + j] * scalar;
 		}
 	}
@@ -171,8 +171,8 @@ void addMatrixInPlace(Matrix a, Matrix b) {
 		throw "addInPlace: Matrix dimensions must match for addition.";
 	}
 
-	for (int i = 0; i < a.rows; i++) {
-		for (int j = 0; j < a.cols; j++) {
+	for (unsigned int i = 0; i < a.rows; i++) {
+		for (unsigned int j = 0; j < a.cols; j++) {
 			a.elements[i * a.cols + j] += b.elements[i * b.cols + j];
 		}
 	}
@@ -183,8 +183,8 @@ Matrix addMatrix(Matrix a, Matrix b){
 
 	Matrix result = createMatrix(a.rows, a.cols);
 
-	for (int i = 0; i < a.rows; i++) {
-		for (int j = 0; j < a.cols; j++) {
+	for (unsigned int i = 0; i < a.rows; i++) {
+		for (unsigned int j = 0; j < a.cols; j++) {
 			result.elements[i * result.cols + j] = b.elements[i * b.cols + j];
 		}
 	}
@@ -196,8 +196,8 @@ void subtractMatrixInPlace(Matrix a, Matrix b) {
 		throw "subtractInPlace: Matrix dimensions must match for subtraction.";
 	}
 
-	for (int i = 0; i < a.rows; i++) {
-		for (int j = 0; j < a.cols; j++) {
+	for (unsigned int i = 0; i < a.rows; i++) {
+		for (unsigned int j = 0; j < a.cols; j++) {
 			a.elements[i * a.cols + j] -= b.elements[i * b.cols + j];
 		}
 	}
@@ -208,8 +208,8 @@ Matrix subtractMatrix(Matrix a, Matrix b) {
 
 	Matrix result = createMatrix(a.rows, a.cols);
 
-	for (int i = 0; i < a.rows; i++) {
-		for (int j = 0; j < a.cols; j++) {
+	for (unsigned int i = 0; i < a.rows; i++) {
+		for (unsigned int j = 0; j < a.cols; j++) {
 			result.elements[i * result.cols + j] = a.elements[i * a.cols + j] - b.elements[i * b.cols + j];
 		}
 	}
@@ -217,8 +217,8 @@ Matrix subtractMatrix(Matrix a, Matrix b) {
 }
 
 void fillMatrix(Matrix mat, float value) {
-	for (int i = 0; i < mat.rows; i++) {
-		for (int j = 0; j < mat.cols; j++) {
+	for (unsigned int i = 0; i < mat.rows; i++) {
+		for (unsigned int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] = value;
 		}
 	}
@@ -230,8 +230,8 @@ Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int num
 	}
 
 	Matrix subMatrix = createMatrix(numRows, numCols);
-	for (int i = 0; i < numRows; i++) {
-		for (int j = 0; j < numCols; j++) {
+	for (unsigned int i = 0; i < numRows; i++) {
+		for (unsigned int j = 0; j < numCols; j++) {
 			subMatrix.elements[i * subMatrix.cols + j] = mat.elements[(startRow + i) * mat.cols + (j + startCol)];
 		}
 	}
@@ -241,8 +241,8 @@ Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int num
 Matrix transposeMatrix(Matrix mat) {
 	Matrix transposed = createMatrix(mat.cols, mat.rows);
 
-	for (int i = 0; i < mat.rows; i++) {
-		for (int j = 0; j < mat.cols; j++) {
+	for (unsigned int i = 0; i < mat.rows; i++) {
+		for (unsigned int j = 0; j < mat.cols; j++) {
 			transposed.elements[j * transposed.cols + i] = mat.elements[i * mat.cols + j];
 		}
 	}
@@ -250,18 +250,18 @@ Matrix transposeMatrix(Matrix mat) {
 }
 
 void printMatrix(Matrix mat) {
-	for (int i = 0; i < mat.rows;++i) {
-		for (int j = 0; j < mat.cols; ++j) {
-			cout << mat.elements[i * mat.cols + j]<<" ";
+	for (unsigned int i = 0; i < mat.rows;++i) {
+		for (unsigned int j = 0; j < mat.cols; ++j) {
+			printf("%f ", mat.elements[i * mat.cols + j]);
 		}
-		cout << endl;
+		printf("\n");
 	}
 }
 
 float sumMatrix(Matrix src) {
 	float result = 0.0;
-	for (int i = 0; i < src.rows; ++i) {
-		for (int j = 0; j < src.cols; ++j) {
+	for (unsigned int i = 0; i < src.rows; ++i) {
+		for (unsigned int j = 0; j < src.cols; ++j) {
 			result += src.elements[i * src.cols + j];
 		}
 	}

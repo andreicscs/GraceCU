@@ -1,24 +1,61 @@
 #ifndef NN_H
 #define NN_H
 
+/**
+* 
+* A simple NeuralNetwork library that implements basic functions to be able to train and test a neural network.
+* 
+*/
+
 #include "Matrix.h"
 
-#define NN_SIGMOID 0
-#define NN_RELU 1
-#define NN_SOFTMAX 10
-#define NN_CCE 20
-#define NN_MSE 21
-#define NN_BCE 22
+typedef enum {
+    NN_OK,                      // no error
+    NN_ERROR_INVALID_ARGUMENT,   // invalid input arguments
+    NN_ERROR_MEMORY_ALLOCATION, // memory allocation failed
+    NN_ERROR_INVALID_CONFIG,     // invalid neural network configuration
+    NN_ERROR_INVALID_LEARNING_RATE, // learning rate is invalid
+    NN_ERROR_UNSUPPORTED_HIDDEN_AF, // unsupported hidden layer activation function
+    NN_ERROR_UNSUPPORTED_OUTPUT_AF, // unsupported output layer activation function
+    NN_ERROR_INVALID_LOSS_FUNCTION, // invalid loss function
+    NN_ERROR_INVALID_LOSS_AF_COMBINATION, // invalid combination of loss function and activation
+    NN_ERROR_IO_FILE, // error while storing / loading NeuralNetwork struct.
+} NNStatus;
+
+
+typedef enum {
+    NN_INITIALIZATION_0,
+    NN_INITIALIZATION_1,
+    NN_INITIALIZATION_SPARSE,
+    NN_INITIALIZATION_HE,
+    NN_INITIALIZATION_HE_UNIFORM,
+    NN_INITIALIZATION_XAVIER,
+    NN_INITIALIZATION_XAVIER_UNIFORM,
+
+} NNInitializationFunction;
+typedef enum {
+    NN_ACTIVATION_SIGMOID,
+    NN_ACTIVATION_RELU,
+    NN_ACTIVATION_SOFTMAX,
+} NNActivationFunction;
+typedef enum {
+    NN_LOSS_CCE,
+    NN_LOSS_MSE,
+    NN_LOSS_BCE,
+} NNLossFunction;
+
 #define NN_epsilon 1e-10f // small value
 #define NN_invalidP nullptr
 
-struct NeuralNetwork;
-struct NNConfig {
+typedef struct NeuralNetwork NeuralNetwork;
+
+typedef struct NNConfig {
     float learningRate;
-    int hiddenLayersAF;
-    int outputLayerAF;
-    int lossFunction;
-};
+    NNInitializationFunction weightInitializerF;
+    NNActivationFunction hiddenLayersAF;
+    NNActivationFunction outputLayerAF;
+    NNLossFunction lossFunction;
+}NNConfig;
 
 /**
 * This function creates, allocates memory, and initializes a neuralNetwork structure.
@@ -26,18 +63,20 @@ struct NNConfig {
 * @param *architecture: pointer to the architecture array, each value rapresents the number of neurons of that layer. EX. The first layer (architecture[0]) is the input layer, the last layer is the output layer.
 * @param layerCount: the length of the architecture array, i.e. the number of layers of the neural network.
 * @param config: structure that contains options for the neuralNetwork that can be set by the user.
+* @param **nnA: pointer to the pointer of the neuralNetwork data structure, the function will use this address to return the nn.
 *
-* @return NeuralNetwork*: returns a pointer to the created nn.
+* @return NNStatus: returns error code.
 */
-NeuralNetwork* createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config);
+NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA);
 
 /**
 * This function frees the allocated memory of a neuralNetwork.
 *
 * @param *nn: pointer to the neuralNetwork data structure.
 *
+* @return NNStatus: returns error code.
 */
-void freeNeuralNetwork(NeuralNetwork *nn);
+NNStatus freeNeuralNetwork(NeuralNetwork *nn);
 
 /**
 * This function trains the neural network on a dataset.
@@ -46,53 +85,76 @@ void freeNeuralNetwork(NeuralNetwork *nn);
 * @param trainingData: all columns dedicated to input apart from the last *nOutputs columns which will be used to store the expected output
 * @param batchSize: the size of the single batches the training data will be split in, after which the weights and biases update. 1 for Stochastic gradient descent, 1<batchSize<trainingDataSize for mini batches, trainingDataSize for full batch training
 *
+* @return NNStatus: returns error code.
 */
-void trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize);
+NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize);
 
 /**
 * This function saves the current state of the neural network allowing it to be used without training.
 *
+* @param fileName: the name of the file the nn will be stored in. file extension must be included
 * @param *nn: pointer to the neuralNetwork data structure.
 *
+* @return NNStatus: returns error code.
 */
-void saveStateNN(NeuralNetwork *nn);
+NNStatus saveStateNN(NeuralNetwork *nn, const char* fileName);
 
 /**
 * This function loads the saved state of the neural network from a file.
-*
+* 
 * @param *filename: path of the file where the saved nn is stored.
+* @param *nn: pointer to the neuralNetwork data structure, the function will use this address to return the nn.
 *
+* @return NNStatus: returns error code.
 */
-NeuralNetwork* loadStateNN(const char* filename);
+NNStatus loadStateNN(const char* filename, NeuralNetwork* nn);
 
 /**
 * This function uses the already trained neuralNetwork to predict the output of a given input.
 *
+* 
 * @param *nn: pointer to the neuralNetwork data structure.
 * @param input: Matrix containing the input for the nn.
+* @param *output: Matrix address where the activations of the last layer of the nn will be returned.
 *
+* @return NNStatus: returns error code.
+* 
 */
-Matrix predictNN(NeuralNetwork* nn, Matrix input);
+NNStatus predictNN(NeuralNetwork *nn, Matrix input, Matrix *output);
 
 
 /**
 * This function computes the accuracy of the output of the neural network on a given dataset.
 *
+* 
 * @param *nn: pointer to the neuralNetwork data structure.
 * @param dataset: all columns dedicated to input apart from the last *nOutputs columns which will be used to store the expected output
+* @param *acuracy: the float address where the accuracy of the nn wil be returned
 *
-* @return float: accuracy of the nn
+* @return NNStatus: returns error code.
+*
 */
-float computeAccuracyNN(NeuralNetwork *nn, Matrix dataset);
+NNStatus computeAccuracyNN(NeuralNetwork *nn, Matrix dataset, float *accuracy);
 
 /**
 * This function computes the average loss of the output of the neural network on a given dataset.
 *
 * @param *nn: pointer to the neuralNetwork data structure.
 * @param trainingData: all columns dedicated to input apart from the last *nOutputs columns which will be used to store the expected output
+* @param *averageLoss: the float address where the averageLoss of the nn wil be returned
 * 
-* @return float: average loss of the nn
+* @return NNStatus: returns error code.
 */
-float computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData);
+NNStatus computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData, float *averageLoss);
+
+
+/**
+* This function converts NNStatus codes to string for a clearer understanding of what the error code means.
+*
+* @param code: status code returned from the library.
+*
+* @return const char*: returns status code message.
+*/
+const char* NNStatusToString(NNStatus code);
 
 #endif // NN_H

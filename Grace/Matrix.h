@@ -1,9 +1,13 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+// !!TODO should implement an enum for error handling.
+
+
+// improve information hiding by moving the struct body in the library implementation file.
 typedef struct {
-	int rows;
-	int cols;
+	unsigned int rows;
+	unsigned int cols;
 	float* elements; // 1d array containing matrix data
 } Matrix;
 

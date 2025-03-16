@@ -1,28 +1,38 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-// !!TODO should implement an enum for error handling.
+typedef enum {
+	MATRIX_OK, // no errors
+	MATRIX_ERROR_OUTOFBOUNDS, // matrix out of bounds
+	MATRIX_ERROR_MEMORY_ALLOCATION, // memory allocation failed
+	MATRIX_ERROR_DIMENSION_MISMATCH, // matrix dimensions mismatched
+} MatrixStatus;
 
+/**
+* out of bounds
+* malloc
+* dimension mismatch
+*/
 
-// improve information hiding by moving the struct body in the library implementation file.
+// !!TODO look into ways to improve information 
 typedef struct {
 	unsigned int rows;
 	unsigned int cols;
 	float* elements; // 1d array containing matrix data
 } Matrix;
 
-Matrix createMatrix(int rows, int cols);
+Matrix createMatrix(int rows, int cols); // throw
 void freeMatrix(Matrix mat);
-Matrix multiplyMatrix(Matrix a, Matrix b);
-Matrix multiplyMatrixElementWise(Matrix a, Matrix b);
+Matrix multiplyMatrix(Matrix a, Matrix b); // throw
+Matrix multiplyMatrixElementWise(Matrix a, Matrix b); // throw
 void scaleMatrixInPlace(Matrix mat, float scalar);
 Matrix scaleMatrix(Matrix mat, float scalar);
-void addMatrixInPlace(Matrix a, Matrix b);
-Matrix addMatrix(Matrix a, Matrix b);
-void subtractMatrixInPlace(Matrix a, Matrix b);
-Matrix subtractMatrix(Matrix a, Matrix b);
+MatrixStatus addMatrixInPlace(Matrix a, Matrix b); // throw
+Matrix addMatrix(Matrix a, Matrix b); // throw
+MatrixStatus subtractMatrixInPlace(Matrix a, Matrix b); // throw
+Matrix subtractMatrix(Matrix a, Matrix b); // throw
 void fillMatrix(Matrix mat, float value);
-Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols);
+Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols); // throw
 Matrix transposeMatrix(Matrix mat);
 void printMatrix(Matrix mat);
 Matrix copyMatrix(Matrix src);

@@ -166,9 +166,9 @@ Matrix scaleMatrix(Matrix mat, float scalar) {
 	return result;
 }
 
-void addMatrixInPlace(Matrix a, Matrix b) {
+MatrixStatus addMatrixInPlace(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
-		throw "addInPlace: Matrix dimensions must match for addition.";
+		return MATRIX_ERROR_DIMENSION_MISMATCH;
 	}
 
 	for (unsigned int i = 0; i < a.rows; i++) {
@@ -191,9 +191,9 @@ Matrix addMatrix(Matrix a, Matrix b){
 	return result;
 }
 
-void subtractMatrixInPlace(Matrix a, Matrix b) {
+MatrixStatus subtractMatrixInPlace(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
-		throw "subtractInPlace: Matrix dimensions must match for subtraction.";
+		return MATRIX_ERROR_DIMENSION_MISMATCH;
 	}
 
 	for (unsigned int i = 0; i < a.rows; i++) {

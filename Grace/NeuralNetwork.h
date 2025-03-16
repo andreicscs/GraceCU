@@ -10,7 +10,7 @@
 #include "Matrix.h"
 
 typedef enum {
-    NN_OK,                      // no error
+    NN_OK,                      // no errors
     NN_ERROR_INVALID_ARGUMENT,   // invalid input arguments
     NN_ERROR_MEMORY_ALLOCATION, // memory allocation failed
     NN_ERROR_INVALID_CONFIG,     // invalid neural network configuration

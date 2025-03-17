@@ -34,7 +34,7 @@
 *   implement cuda kernels for gpu parallelied computations.
 *   improve error handling.
 *   implement a validate NN function.
-* 
+*   found other memory leaks, find where the cause is and fix them.
 */
 
 struct NeuralNetwork {

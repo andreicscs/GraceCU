@@ -92,6 +92,7 @@
         return -1;
     }
     freeMatrix(trainDataset);
+    _CrtDumpMemoryLeaks();
 
     return 0;
  }

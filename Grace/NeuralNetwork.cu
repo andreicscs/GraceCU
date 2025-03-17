@@ -352,7 +352,6 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, unsigned int iLayer) {
         }
     }
     
-    Matrix activated;
     MatrixStatus err = createMatrix(mat.rows, mat.cols, &activated); //if (err != MATRIX_OK) return matrixToNNStatus(err);
     // if they were not selected proceed with mutually exclusive AF.
     for (unsigned int i = 0; i < mat.rows; i++) {
@@ -369,8 +368,6 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, unsigned int iLayer) {
 }
 
 Matrix multipleOutputActivationFunction(Matrix mat, int af) {
-    Matrix res = {0,0,NN_invalidP};
-
     switch (af) {
         case NN_ACTIVATION_SOFTMAX:
             return softmax(mat);

@@ -13,7 +13,8 @@
 #include "MNISTLoader.h"
 
 
- int main(){
+int main(){
+    
     // Load and preprocess data
     char trainFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_train.csv";
     char testFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_test.csv";
@@ -21,20 +22,23 @@
     int numTrainSamples = 60000; // MNIST training set size
     int numTestSamples = 10000;  // MNIST test set size
 
-    // Load and preprocess training data
-    Matrix trainData = loadMNIST(trainFilePath, numTrainSamples);
-    trainData = normalizeData(trainData);
-    Matrix trainLabels = oneHotEncodeLabels(trainData);
-
-    Matrix trainDataset = prepareDataset(trainData, trainLabels);
+    // load and preprocess training data
+    Matrix rawTrainData = loadMNIST(trainFilePath, numTrainSamples);
+    Matrix normalizedTrainData = normalizeData(rawTrainData);
+    Matrix trainLabels = oneHotEncodeLabels(normalizedTrainData);
+    Matrix trainDataset = prepareDataset(normalizedTrainData, trainLabels);
+    freeMatrix(normalizedTrainData);
+    freeMatrix(trainLabels);
+    
 
     
-    // Load and preprocess test data
-    Matrix testData = loadMNIST(testFilePath, numTestSamples);
-    testData = normalizeData(testData);
-    Matrix testLabels = oneHotEncodeLabels(testData);
-    Matrix testDataset = prepareDataset(testData, testLabels);
-    
+    // load and preprocess test data
+    Matrix rawTestData = loadMNIST(testFilePath, numTestSamples);
+    Matrix normalizedTestData = normalizeData(rawTestData);
+    Matrix testLabels = oneHotEncodeLabels(normalizedTestData);
+    Matrix testDataset = prepareDataset(normalizedTestData, testLabels);
+    freeMatrix(normalizedTestData);
+    freeMatrix(testLabels);
     
 
     int architecture[] = { 784, 128, 64, 10 };
@@ -59,9 +63,8 @@
    
     int batchSize = 32;
     int epochs=1;
-    
-    float trainLoss;
-    float trainAccuracy;
+    float loss;
+    float accuracy;
     for(int i=0; i<epochs; ++i){
         printf("Epoch %d\n",i+1);
         
@@ -72,13 +75,13 @@
             printf("trainNN: %s\n", NNStatusToString(err));
             return -1;
         }
-        computeAverageLossNN(nn, trainDataset, &trainLoss);
-        computeAccuracyNN(nn, trainDataset, &trainAccuracy);
-        printf("Training Loss: %f, Accuracy: %f\n", trainLoss, trainAccuracy);
+        computeAverageLossNN(nn, trainDataset, &loss);
+        computeAccuracyNN(nn, trainDataset, &accuracy);
+        printf("Training Loss: %f, Accuracy: %f\n", loss, accuracy);
 
-        computeAverageLossNN(nn, testDataset, &trainLoss);
-        computeAccuracyNN(nn, testDataset, &trainAccuracy);
-        printf("Test Loss: %f, Accuracy: %f\n", trainLoss, trainAccuracy);
+        computeAverageLossNN(nn, testDataset, &loss);
+        computeAccuracyNN(nn, testDataset, &accuracy);
+        printf("Test Loss: %f, Accuracy: %f\n", loss, accuracy);
         
         clock_t end = clock();
         float dur = (float)(end - begin) / CLOCKS_PER_SEC;
@@ -91,11 +94,15 @@
         printf("freeNeuralNetwork: %s\n", NNStatusToString(err));
         return -1;
     }
+    
     freeMatrix(trainDataset);
+    freeMatrix(testDataset);
+
+    
     _CrtDumpMemoryLeaks();
 
     return 0;
- }
+}
 
 
 

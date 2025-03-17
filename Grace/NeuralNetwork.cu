@@ -250,50 +250,6 @@ void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
     freeMatrix(deltas); // if (i > 1) skips deltas of first hidden layer
 }
 
-/*
-void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
-    // free existing deltas
-    
-    for (unsigned int i = 0; i < nn.layerCount-1; ++i) {
-        if (nn.deltas[i].elements != NN_invalidP) {
-            freeMatrix(nn.deltas[i]);
-        }
-    }
-    
-    // compute deltas for last layer.
-    nn.deltas[nn.layerCount - 2] = computeOutputLayerDeltas(nn, expectedOutput);
-
-    // propagate error backward
-    for (unsigned int i = nn.layerCount - 1; i > 0; --i) {
-        Matrix transposedActivations = transposeMatrix(nn.activations[i - 1]);
-        Matrix weightGradients = multiplyMatrix(transposedActivations, nn.deltas[i-1]);  // compute weight gradients for layer, Weight gradients = activations[i-1]^T * deltas[i-1]
-        addMatrixInPlace(nn.weightsGradients[i-1], weightGradients);
-
-        // free intermediate matrices
-        freeMatrix(transposedActivations);
-        freeMatrix(weightGradients);
-
-        // compute bias gradients
-        Matrix biasGradients = copyMatrix(nn.deltas[i-1]);
-        addMatrixInPlace(nn.biasesGradients[i-1], biasGradients);
-        freeMatrix(biasGradients);
-
-        // compute deltas for previous layer (if not input layer)
-        // delta[l] = (W[l+1]^T * delta[l+1]) ⊙ af'(z[l])
-        if (i > 1) {
-            Matrix transposedWeights = transposeMatrix(nn.weights[i-1]);
-            Matrix inputGradients = multiplyMatrix(nn.deltas[i-1], transposedWeights);	// input gradients = deltas[i-1] * weights[i]^T
-            freeMatrix(transposedWeights);
-
-            Matrix activationDerivative = computeActivationDerivative(nn.outputs[i - 1], nn.config.hiddenLayersAF);	// activation derivative = f'(outputs[i-1])
-            nn.deltas[i - 2] = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// deltas for previous layer = inputGradients ⊙ activationDerivative
-            // free intermediate matrices
-            freeMatrix(inputGradients);
-            freeMatrix(activationDerivative);
-        }
-    }
-}
-*/
 void updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize) {
     // this loop can be parallelized
     for (unsigned int i = 0; i < nn.layerCount-1; ++i) {

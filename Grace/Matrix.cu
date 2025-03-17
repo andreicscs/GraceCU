@@ -54,7 +54,8 @@ bool isGpuAvailable() {
 }
 
 Matrix copyMatrix(Matrix src) {
-	Matrix dest = createMatrix(src.rows, src.cols);
+	Matrix dest;
+	MatrixStatus err = createMatrix(src.rows, src.cols, &dest); //if (err != MATRIX_OK)return err;
 	for (unsigned int i = 0; i < src.rows * src.cols; ++i) {
 		dest.elements[i] = src.elements[i];
 	}

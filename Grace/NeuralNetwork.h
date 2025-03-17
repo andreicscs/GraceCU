@@ -20,6 +20,7 @@ typedef enum {
     NN_ERROR_INVALID_LOSS_FUNCTION, // invalid loss function
     NN_ERROR_INVALID_LOSS_AF_COMBINATION, // invalid combination of loss function and activation
     NN_ERROR_IO_FILE, // error while storing / loading NeuralNetwork struct.
+    NN_ERROR_UNKNOWN,   // error was not recognized
 } NNStatus;
 
 

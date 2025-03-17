@@ -32,7 +32,7 @@
 *   implement optimizers.
 *   improve documentation.
 *   implement cuda kernels for gpu parallelied computations.
-*   improve error handling.
+*   improve error handling, all functions should be able to propagate errors.
 *   implement a validate NN function.
 *   
 */
@@ -83,6 +83,7 @@ float sigmoidDerivative(float sig);
 NNStatus checkNNConfig(NNConfig config);
 const char* NNStatusToString(NNStatus code);
 float initializationFunction(NNInitializationFunction weightInitializerF, unsigned int nIn, unsigned int nOut);
+NNStatus matrixToNNStatus(MatrixStatus err);
 
 NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA) {
     if (nnA == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
@@ -112,10 +113,10 @@ NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCo
      
     srand((unsigned int)time(NULL));
     for (unsigned int i = 0; i < layerCount - 1; ++i) {
-        nn->weights[i] = createMatrix(architecture[i], architecture[i + 1]);
-        nn->biases[i] = createMatrix(1, architecture[i + 1]);
-        nn->weightsGradients[i] = createMatrix(architecture[i], architecture[i + 1]);
-        nn->biasesGradients[i] = createMatrix(1, architecture[i + 1]);
+        MatrixStatus err = createMatrix(architecture[i], architecture[i + 1], &nn->weights[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
+        err = createMatrix(1, architecture[i + 1], &nn->biases[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
+        err = createMatrix(architecture[i], architecture[i + 1], &nn->weightsGradients[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
+        err = createMatrix(1, architecture[i + 1], &nn->biasesGradients[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
 
         // he initialization
         float stddev = initializationFunction(nn->config.weightInitializerF, nn->weights[i].rows, nn->weights[i].cols);
@@ -172,7 +173,7 @@ NNStatus freeNeuralNetwork(NeuralNetwork *nn) {
 NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize) {
     if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
     unsigned int trainCount = trainingData.rows;
-    if (batchSize > trainCount) return NN_ERROR_INVALID_ARGUMENT;
+    if (batchSize > trainCount || batchSize==0) return NN_ERROR_INVALID_ARGUMENT;
     for (unsigned int i = 0; i < trainCount; ++i) {
         Matrix input = getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn->numOutputs);
         Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn->numOutputs, 1, nn->numOutputs);
@@ -296,7 +297,8 @@ Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedO
 }
 
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf) {
-    Matrix derivative = createMatrix(outputs.rows, outputs.cols);
+    Matrix derivative;
+    MatrixStatus err = createMatrix(outputs.rows, outputs.cols, &derivative); //if (err != MATRIX_OK) return matrixToNNStatus(err);
     for (unsigned int j = 0; j < outputs.cols; j++) {
         derivative.elements[j] = lossDerivative(outputs.elements[j], expectedOutputs.elements[j], lf);
     }
@@ -316,7 +318,8 @@ float lossDerivative(float output, float expectedOutput, int lf) {
 }
 
 Matrix computeActivationDerivative(Matrix outputs, int af) {
-    Matrix derivative = createMatrix(outputs.rows, outputs.cols);
+    Matrix derivative;
+    MatrixStatus err = createMatrix(outputs.rows, outputs.cols, &derivative); //if (err != MATRIX_OK) return matrixToNNStatus(err);
     for (unsigned int i = 0; i < outputs.rows; i++) {
         for (unsigned int j = 0; j < outputs.cols; j++) {
             derivative.elements[i * derivative.cols + j] = AFDerivative(outputs.elements[i * outputs.cols + j], af);
@@ -349,7 +352,8 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, unsigned int iLayer) {
         }
     }
     
-    activated = createMatrix(mat.rows, mat.cols);
+    Matrix activated;
+    MatrixStatus err = createMatrix(mat.rows, mat.cols, &activated); //if (err != MATRIX_OK) return matrixToNNStatus(err);
     // if they were not selected proceed with mutually exclusive AF.
     for (unsigned int i = 0; i < mat.rows; i++) {
         for (unsigned int j = 0; j < mat.cols; j++) {
@@ -584,7 +588,8 @@ float sigmoidDerivative(float sig) {
 }
 
 Matrix softmax(Matrix mat) {
-    Matrix result = createMatrix(mat.rows, mat.cols);
+    Matrix result;
+    MatrixStatus err = createMatrix(mat.rows, mat.cols, &result); //if (err != MATRIX_OK) return matrixToNNStatus(err);
 
     for (unsigned int i = 0; i < mat.rows; i++) {
         float max = mat.elements[i * mat.cols];
@@ -725,8 +730,26 @@ const char* NNStatusToString(NNStatus code) {
         case NN_ERROR_IO_FILE:
             return "An error occured while storing / loading NeuralNetwork struct.";
             break;
+        case NN_ERROR_UNKNOWN:
+            return "The error was not recognized";
+            break;
         default:
             return "Unknown error";
             break;
+    }
+}
+
+NNStatus matrixToNNStatus(MatrixStatus err) {
+    switch (err) {
+    case MATRIX_ERROR_DIMENSION_MISMATCH:
+        return NN_ERROR_INVALID_ARGUMENT;
+    case MATRIX_ERROR_MEMORY_ALLOCATION:
+        return NN_ERROR_MEMORY_ALLOCATION;
+    case MATRIX_ERROR_OUTOFBOUNDS:
+        return NN_ERROR_INVALID_ARGUMENT;
+    case MATRIX_OK:
+        return NN_OK;
+    default:
+        return NN_ERROR_UNKNOWN;
     }
 }

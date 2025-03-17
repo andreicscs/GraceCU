@@ -6,6 +6,7 @@ typedef enum {
 	MATRIX_ERROR_OUTOFBOUNDS, // matrix out of bounds
 	MATRIX_ERROR_MEMORY_ALLOCATION, // memory allocation failed
 	MATRIX_ERROR_DIMENSION_MISMATCH, // matrix dimensions mismatched
+	MATRIX_ERROR_UNKNOWN, // error was not recognized
 } MatrixStatus;
 
 /**
@@ -14,14 +15,14 @@ typedef enum {
 * dimension mismatch
 */
 
-// !!TODO look into ways to improve information 
+// !!TODO look into ways to improve information hiding
 typedef struct {
 	unsigned int rows;
 	unsigned int cols;
 	float* elements; // 1d array containing matrix data
 } Matrix;
 
-Matrix createMatrix(int rows, int cols); // throw
+MatrixStatus createMatrix(int rows, int cols, Matrix *out); // throw
 void freeMatrix(Matrix mat);
 Matrix multiplyMatrix(Matrix a, Matrix b); // throw
 Matrix multiplyMatrixElementWise(Matrix a, Matrix b); // throw

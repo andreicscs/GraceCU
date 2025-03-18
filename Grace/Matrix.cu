@@ -15,7 +15,8 @@
 
 /**
 * TODO list:
-*   implement error handling:
+*   write documnetation
+*	write tests.
 *   implement cuda kernels for gpu parallelied computations.
 *
 */
@@ -29,7 +30,6 @@ bool isGpuAvailable();
 __global__ void matMulKernel(float* res, float* a, float* b, int resRows, int resCols, int aCols, int bCols) {
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
-	// if the row and col is in bounds.
 	if (row < resRows && col < resCols) {
 		float sum = 0.0;
 		for (unsigned int k = 0; k < aCols; k++) {
@@ -54,43 +54,39 @@ bool isGpuAvailable() {
 }
 
 Matrix copyMatrix(Matrix src) {
-	Matrix dest;
-	MatrixStatus err = createMatrix(src.rows, src.cols, &dest); //if (err != MATRIX_OK)return err;
+	if(src.elements==MATRIX_invalidP)return { 0,0,MATRIX_invalidP };
+	Matrix dest = createMatrix(src.rows, src.cols);
 	for (unsigned int i = 0; i < src.rows * src.cols; ++i) {
 		dest.elements[i] = src.elements[i];
 	}
 	return dest;
 }
 
-MatrixStatus createMatrix(int rows, int cols, Matrix* out) {
+Matrix createMatrix(unsigned int rows, unsigned int cols) {
 	Matrix mat;
-	
+
 	mat.rows = rows;
 	mat.cols = cols;
 	mat.elements = (float*)malloc(rows * cols * sizeof(float));
-	if (mat.elements == NULL) return MATRIX_ERROR_MEMORY_ALLOCATION;
+	if (mat.elements == NULL)return { 0,0,MATRIX_invalidP };
 
-	*out = mat;
-	return MATRIX_OK;
+	return mat;
 }
 
 void freeMatrix(Matrix mat) {
 	mat.rows = 0;
 	mat.cols = 0;
-	if (mat.elements != nullptr) {
+	if (mat.elements != MATRIX_invalidP) {
 		free(mat.elements);
 	}
 }
 
 Matrix multiplyMatrix(Matrix a, Matrix b) {
 	if (a.cols != b.rows) {
-		//return MATRIX_ERROR_DIMENSION_MISMATCH;
+		return { 0,0,MATRIX_invalidP };
 	}
-	Matrix result;
-	MatrixStatus err = createMatrix(a.rows, b.cols, &result);
-	if (err!=0) {
-		//return err;
-	}
+
+	Matrix result = createMatrix(a.rows, b.cols);
 	fillMatrix(result, 0);
 
 	for (unsigned int i = 0; i < a.rows; i++) {
@@ -104,15 +100,10 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 }
 
 Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
-	// check if matrices have the same dimensions
 	if (a.rows != b.rows || a.cols != b.cols) {
-		//return MATRIX_ERROR_DIMENSION_MISMATCH;
+		return { 0,0,MATRIX_invalidP };
 	}
-	Matrix result;
-	MatrixStatus err = createMatrix(a.rows, a.cols, &result);
-	if (err != 0) {
-		//return err;
-	}
+	Matrix result = createMatrix(a.rows, a.cols);
 	for (unsigned int i = 0; i < a.rows; i++) {
 		for (unsigned int j = 0; j < a.cols; j++) {
 			result.elements[i * result.cols + j] = a.elements[i * a.cols + j] * b.elements[i * b.cols + j];
@@ -121,20 +112,19 @@ Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
 	return result;
 }
 
-void scaleMatrixInPlace(Matrix mat, float scalar) {
+bool scaleMatrixInPlace(Matrix mat, float scalar) {
+	if (mat.elements == NULL)return false;
 	for (unsigned int i = 0; i < mat.rows; i++) {
 		for (unsigned int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] *= scalar;
 		}
 	}
+	return true;
 }
 
 Matrix scaleMatrix(Matrix mat, float scalar) {
-	Matrix result;
-	MatrixStatus err = createMatrix(mat.rows, mat.cols, &result);
-	if (err != 0) {
-		//return err;
-	}
+	if (mat.elements == NULL)return { 0,0,MATRIX_invalidP };
+	Matrix result = createMatrix(mat.rows, mat.cols);
 	for (unsigned int i = 0; i < mat.rows; i++) {
 		for (unsigned int j = 0; j < mat.cols; j++) {
 			result.elements[i * result.cols + j] = mat.elements[i * mat.cols + j] * scalar;
@@ -143,9 +133,9 @@ Matrix scaleMatrix(Matrix mat, float scalar) {
 	return result;
 }
 
-MatrixStatus addMatrixInPlace(Matrix a, Matrix b) {
+bool addMatrixInPlace(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
-		return MATRIX_ERROR_DIMENSION_MISMATCH;
+		return false;
 	}
 
 	for (unsigned int i = 0; i < a.rows; i++) {
@@ -153,16 +143,14 @@ MatrixStatus addMatrixInPlace(Matrix a, Matrix b) {
 			a.elements[i * a.cols + j] += b.elements[i * b.cols + j];
 		}
 	}
+	return true;
 }
 
-Matrix addMatrix(Matrix a, Matrix b){
-	if (a.rows != b.rows || a.cols != b.cols); //return MATRIX_ERROR_DIMENSION_MISMATCH;
+Matrix addMatrix(Matrix a, Matrix b) {
+	if (a.rows != b.rows || a.cols != b.cols) return { 0,0,MATRIX_invalidP };
 
-	Matrix result;
-	MatrixStatus err = createMatrix(a.rows, a.cols, &result);
-	if (err != 0) {
-		//return err;
-	}
+	Matrix result = createMatrix(a.rows, a.cols);
+
 	for (unsigned int i = 0; i < a.rows; i++) {
 		for (unsigned int j = 0; j < a.cols; j++) {
 			result.elements[i * result.cols + j] = b.elements[i * b.cols + j];
@@ -171,9 +159,9 @@ Matrix addMatrix(Matrix a, Matrix b){
 	return result;
 }
 
-MatrixStatus subtractMatrixInPlace(Matrix a, Matrix b) {
+bool subtractMatrixInPlace(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
-		return MATRIX_ERROR_DIMENSION_MISMATCH;
+		return false;
 	}
 
 	for (unsigned int i = 0; i < a.rows; i++) {
@@ -181,16 +169,14 @@ MatrixStatus subtractMatrixInPlace(Matrix a, Matrix b) {
 			a.elements[i * a.cols + j] -= b.elements[i * b.cols + j];
 		}
 	}
+	return true;
 }
 
 Matrix subtractMatrix(Matrix a, Matrix b) {
-	if (a.rows != b.rows || a.cols != b.cols); //return MATRIX_ERROR_DIMENSION_MISMATCH;
+	if (a.rows != b.rows || a.cols != b.cols) return { 0,0,MATRIX_invalidP };
 
-	Matrix result;
-	MatrixStatus err = createMatrix(a.rows, a.cols, &result);
-	if (err != 0) {
-		//return err;
-	}
+	Matrix result = createMatrix(a.rows, a.cols);
+
 	for (unsigned int i = 0; i < a.rows; i++) {
 		for (unsigned int j = 0; j < a.cols; j++) {
 			result.elements[i * result.cols + j] = a.elements[i * a.cols + j] - b.elements[i * b.cols + j];
@@ -199,24 +185,22 @@ Matrix subtractMatrix(Matrix a, Matrix b) {
 	return result;
 }
 
-void fillMatrix(Matrix mat, float value) {
+bool fillMatrix(Matrix mat, float value) {
+	if (mat.elements == NULL)return false;
 	for (unsigned int i = 0; i < mat.rows; i++) {
 		for (unsigned int j = 0; j < mat.cols; j++) {
 			mat.elements[i * mat.cols + j] = value;
 		}
 	}
+	return true;
 }
 
-Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols) {
-	if (startRow < 0 || startRow + numRows > mat.rows || startCol < 0 || startCol + numCols > mat.cols) {
-		//return MATRIX_ERROR_OUTOFBOUNDS;
+Matrix getSubMatrix(Matrix mat, unsigned int startRow, unsigned int startCol, unsigned int numRows, unsigned int numCols) {
+	if (startRow + numRows > mat.rows || startCol + numCols > mat.cols) {
+		return { 0,0,MATRIX_invalidP };
 	}
 
-	Matrix subMatrix;
-	MatrixStatus err = createMatrix(numRows, numCols, &subMatrix);
-	if (err != 0) {
-		//return err;
-	}
+	Matrix subMatrix = createMatrix(numRows, numCols);
 	for (unsigned int i = 0; i < numRows; i++) {
 		for (unsigned int j = 0; j < numCols; j++) {
 			subMatrix.elements[i * subMatrix.cols + j] = mat.elements[(startRow + i) * mat.cols + (j + startCol)];
@@ -226,11 +210,8 @@ Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int num
 }
 
 Matrix transposeMatrix(Matrix mat) {
-	Matrix transposed;
-	MatrixStatus err = createMatrix(mat.cols, mat.rows, &transposed);
-	if (err != 0) {
-		//return err;
-	}
+	if (mat.elements == NULL)return { 0,0,MATRIX_invalidP };
+	Matrix transposed = createMatrix(mat.cols, mat.rows);
 
 	for (unsigned int i = 0; i < mat.rows; i++) {
 		for (unsigned int j = 0; j < mat.cols; j++) {
@@ -241,7 +222,8 @@ Matrix transposeMatrix(Matrix mat) {
 }
 
 void printMatrix(Matrix mat) {
-	for (unsigned int i = 0; i < mat.rows;++i) {
+	if (mat.elements == NULL)return;
+	for (unsigned int i = 0; i < mat.rows; ++i) {
 		for (unsigned int j = 0; j < mat.cols; ++j) {
 			printf("%f ", mat.elements[i * mat.cols + j]);
 		}
@@ -250,6 +232,7 @@ void printMatrix(Matrix mat) {
 }
 
 float sumMatrix(Matrix src) {
+	if (src.elements == NULL)return MATRIX_invalidP;
 	float result = 0.0;
 	for (unsigned int i = 0; i < src.rows; ++i) {
 		for (unsigned int j = 0; j < src.cols; ++j) {

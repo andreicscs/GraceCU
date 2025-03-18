@@ -8,7 +8,6 @@
 */
 
 #include "Matrix.h"
-
 typedef enum {
     NN_OK,                      // no errors
     NN_ERROR_INVALID_ARGUMENT,   // invalid input arguments
@@ -46,7 +45,7 @@ typedef enum {
 } NNLossFunction;
 
 #define NN_epsilon 1e-10f // small value
-#define NN_invalidP nullptr
+#define NN_invalidP NULL
 
 typedef struct NeuralNetwork NeuralNetwork;
 
@@ -157,5 +156,6 @@ NNStatus computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData, float *ave
 * @return const char*: returns status code message.
 */
 const char* NNStatusToString(NNStatus code);
+
 
 #endif // NN_H

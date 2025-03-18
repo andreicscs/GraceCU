@@ -41,7 +41,8 @@ int main(){
     freeMatrix(testLabels);
     
 
-    int architecture[] = { 784, 128, 64, 10 };
+    //int architecture[] = { 784, 128, 64, 10 };
+    int architecture[] = { 784, 10 };
 
 
     NNConfig config;
@@ -55,7 +56,7 @@ int main(){
     
     NNStatus err;
     
-    err=createNeuralNetwork(architecture, 4, config, &nn);
+    err=createNeuralNetwork(architecture, 2, config, &nn);
     if (err!=0) {
         printf("createNeuralNetowork: %s\n", NNStatusToString(err));
         return -1;

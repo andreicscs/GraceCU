@@ -27,13 +27,13 @@
 *   LF(multiple output) : CCE AND SOFTMAX DERIVATIVE
 * 
 * TODO list:
-*   write tests.
+*   find out why layerCount < 2 in createNeuralNetwork generates stupid warnings.
+*   improve documentation.
+*   implement a validate NN function. (can be used to validate NNs loaded from file (?))
 *   implement regularization.
 *   implement optimizers.
-*   improve documentation.
+*   write tests.
 *   implement cuda kernels for gpu parallelied computations.
-*   improve error handling, all functions should be able to propagate errors.
-*   implement a validate NN function.
 *   
 */
 
@@ -50,8 +50,8 @@ struct NeuralNetwork {
     NNConfig config;
 };
 
-void forward(NeuralNetwork nn, Matrix input);
-void backPropagation(NeuralNetwork nn, Matrix expectedOutput);
+bool forward(NeuralNetwork nn, Matrix input);
+bool backPropagation(NeuralNetwork nn, Matrix expectedOutput);
 Matrix applyActivation(NeuralNetwork nn, Matrix matrix, unsigned int iLayer);
 Matrix multipleOutputActivationFunction(Matrix mat, int af);
 float activationFunction(float x, int af);
@@ -72,52 +72,82 @@ Matrix softmax(Matrix mat);
 float reluDerivative(float x);
 float relu(float x);
 float sigmoid(float x);
-void updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize);
+bool updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize);
 float loss(float output, float expectedOutput, int lf);
 float multipleOutputLoss(Matrix output, Matrix expectedOutput, int lf);
 float CCEloss(Matrix predictions, Matrix labels);
-float computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset);
-float computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset);
+bool computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset, float* out);
+bool computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, float* out);
 float randomNormal(float mean, float stddev);
 float sigmoidDerivative(float sig);
 NNStatus checkNNConfig(NNConfig config);
 const char* NNStatusToString(NNStatus code);
 float initializationFunction(NNInitializationFunction weightInitializerF, unsigned int nIn, unsigned int nOut);
-NNStatus matrixToNNStatus(MatrixStatus err);
 
 NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA) {
-    if (nnA == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if (architecture == NN_invalidP || nnA == NN_invalidP || *nnA == NN_invalidP || layerCount < 2) { // !!TODO why in the world does checking layerCount < 2 cause so many warnings?        return NN_ERROR_INVALID_ARGUMENT;
+    }
+
+
     NeuralNetwork *nn = (NeuralNetwork*) malloc(sizeof(NeuralNetwork));
     if (nn == NN_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
     
     NNStatus err;
     err=checkNNConfig(config);
-    if (err != 0)return err;
-
+    if (err != 0) {
+        free(nn);
+        return err;
+    }
+    
+    nn->weights = NN_invalidP;
+    nn->biases = NN_invalidP;
+    nn->weightsGradients = NN_invalidP;
+    nn->biasesGradients = NN_invalidP;
+    nn->outputs = NN_invalidP;
+    nn->activations = NN_invalidP;
     nn->config = config;
-
     nn->architecture = architecture;
     nn->layerCount = layerCount;
-    nn->weights = (Matrix*) malloc(sizeof(Matrix) * (layerCount-1)); if (nn->weights == NN_invalidP)return NN_ERROR_MEMORY_ALLOCATION;
-    nn->biases = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1)); if (nn->biases == NN_invalidP)return NN_ERROR_MEMORY_ALLOCATION;
-    nn->weightsGradients = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1)); if (nn->weightsGradients == NN_invalidP)return NN_ERROR_MEMORY_ALLOCATION;
-    nn->biasesGradients = (Matrix*)malloc(sizeof(Matrix) * (layerCount-1)); if (nn->biasesGradients == NN_invalidP)return NN_ERROR_MEMORY_ALLOCATION;
-    nn->outputs = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn->outputs == NN_invalidP)return NN_ERROR_MEMORY_ALLOCATION;
-    nn->activations = (Matrix*)malloc(sizeof(Matrix) * layerCount); if (nn->activations == NN_invalidP)return NN_ERROR_MEMORY_ALLOCATION;
-    nn->numOutputs = architecture[layerCount - 1];
+    nn->numOutputs = architecture[nn->layerCount - 1];
+
+    nn->weights = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->weights == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->biases = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->biases == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->weightsGradients = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->weightsGradients == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->biasesGradients = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->biasesGradients == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->outputs = (Matrix*)malloc(sizeof(Matrix) * nn->layerCount);
+    if (nn->outputs == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->activations = (Matrix*)malloc(sizeof(Matrix) * nn->layerCount);
+    if (nn->activations == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+    
 
     /*
-     * Allocating and initializing weights, biases, and gradients for layers 1 to layerCount-1.
+     * Allocating and initializing weights, biases, and gradients for layers 0 to layerCount-2.
      * initializing weights using the selected initialization method and biases to 0.01 (which helps prevent dead neurons).
      */
      
     srand((unsigned int)time(NULL));
-    for (unsigned int i = 0; i < layerCount - 1; ++i) {
-        MatrixStatus err = createMatrix(architecture[i], architecture[i + 1], &nn->weights[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
-        err = createMatrix(1, architecture[i + 1], &nn->biases[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
-        err = createMatrix(architecture[i], architecture[i + 1], &nn->weightsGradients[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
-        err = createMatrix(1, architecture[i + 1], &nn->biasesGradients[i]); if (err != MATRIX_OK) return matrixToNNStatus(err);
+    for (unsigned int i = 0; i < nn->layerCount - 1; ++i) {
+        nn->weights[i] = createMatrix(architecture[i], architecture[i + 1]); 
+        if (nn->weights[i].elements == MATRIX_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
 
+        nn->biases[i] = createMatrix(1, architecture[i + 1]); 
+        if (nn->biases[i].elements == MATRIX_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+        nn->weightsGradients[i] = createMatrix(architecture[i], architecture[i + 1]); 
+        if (nn->weightsGradients[i].elements == MATRIX_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+        nn->biasesGradients[i] = createMatrix(1, architecture[i + 1]); 
+        if (nn->biasesGradients[i].elements == MATRIX_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+       
         // he initialization
         float stddev = initializationFunction(nn->config.weightInitializerF, nn->weights[i].rows, nn->weights[i].cols);
         float mean = 0.0f;
@@ -134,9 +164,9 @@ NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCo
         }
     }
 
-    for (unsigned int i = 0; i < layerCount; ++i) {
-        nn->outputs[i] = { 0, 0, NN_invalidP };
-        nn->activations[i] = { 0, 0, NN_invalidP };
+    for (unsigned int i = 0; i < nn->layerCount; ++i) {
+        nn->outputs[i] = { 0, 0, MATRIX_invalidP };
+        nn->activations[i] = { 0, 0, MATRIX_invalidP };
     }
 
     *nnA = nn;
@@ -146,82 +176,123 @@ NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCo
 NNStatus freeNeuralNetwork(NeuralNetwork *nn) {
     if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
     // free all matrices inside matrices arrays
+    
     for (unsigned int i = 0; i < nn->layerCount; ++i) {
-        if (nn->outputs[i].elements != NN_invalidP) freeMatrix(nn->outputs[i]);
-        if (nn->activations[i].elements != NN_invalidP) freeMatrix(nn->activations[i]);
+        if (nn->outputs != NN_invalidP) if (nn->outputs[i].elements != MATRIX_invalidP) freeMatrix(nn->outputs[i]); // check if the pointer itself is null first.
+        if (nn->activations != NN_invalidP) if (nn->activations[i].elements != MATRIX_invalidP) freeMatrix(nn->activations[i]);
     }
+    
     for (unsigned int i = 0; i < nn->layerCount - 1; ++i) {
-        if (nn->weights[i].elements != NN_invalidP) freeMatrix(nn->weights[i]);
-        if (nn->biases[i].elements != NN_invalidP) freeMatrix(nn->biases[i]);
-        if (nn->weightsGradients[i].elements != NN_invalidP) freeMatrix(nn->weightsGradients[i]);
-        if (nn->biasesGradients[i].elements != NN_invalidP) freeMatrix(nn->biasesGradients[i]);
+        if (nn->weights != NN_invalidP) if (nn->weights[i].elements != MATRIX_invalidP) freeMatrix(nn->weights[i]);
+        if (nn->biases != NN_invalidP) if (nn->biases[i].elements != MATRIX_invalidP) freeMatrix(nn->biases[i]);
+        if (nn->weightsGradients != NN_invalidP) if (nn->weightsGradients[i].elements != MATRIX_invalidP) freeMatrix(nn->weightsGradients[i]);
+        if (nn->biasesGradients != NN_invalidP) if (nn->biasesGradients[i].elements != MATRIX_invalidP) freeMatrix(nn->biasesGradients[i]);
     }
 
     // free matrices arrays
-    if (nn->weights != NN_invalidP) free(nn->weights);
-    if (nn->biases != NN_invalidP) free(nn->biases);
-    if (nn->weightsGradients != NN_invalidP) free(nn->weightsGradients);
-    if (nn->biasesGradients != NN_invalidP) free(nn->biasesGradients);
-    if (nn->outputs != NN_invalidP) free(nn->outputs);
-    if (nn->activations != NN_invalidP) free(nn->activations);
+    if (nn->weights != NN_invalidP) free(nn->weights); nn->weights = NN_invalidP;
+    if (nn->biases != NN_invalidP) free(nn->biases); nn->biases = NN_invalidP;
+    if (nn->weightsGradients != NN_invalidP) free(nn->weightsGradients); nn->weightsGradients = NN_invalidP;
+    if (nn->biasesGradients != NN_invalidP) free(nn->biasesGradients); nn->biasesGradients = NN_invalidP;
+    if (nn->outputs != NN_invalidP) free(nn->outputs); nn->outputs = NN_invalidP;
+    if (nn->activations != NN_invalidP) free(nn->activations); nn->activations = NN_invalidP;
 
     free(nn);
+    nn = NN_invalidP;
     return NN_OK;
 }
 
 
 NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize) {
     if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if ((trainingData.cols- nn->numOutputs)!=nn->architecture[0]) return NN_ERROR_INVALID_ARGUMENT;
+    if ((trainingData.cols - nn->architecture[0]) != nn->numOutputs) return NN_ERROR_INVALID_ARGUMENT;
     unsigned int trainCount = trainingData.rows;
     if (batchSize > trainCount || batchSize==0) return NN_ERROR_INVALID_ARGUMENT;
     for (unsigned int i = 0; i < trainCount; ++i) {
         Matrix input = getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn->numOutputs);
+        if (input.elements==MATRIX_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
         Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn->numOutputs, 1, nn->numOutputs);
+        if (expected.elements == MATRIX_invalidP) {
+            freeMatrix(input);
+            return NN_ERROR_MEMORY_ALLOCATION;
+        }
 
-        forward(*nn, input);
-        backPropagation(*nn, expected);
+        if (!forward(*nn, input)) {
+            freeMatrix(input);
+            freeMatrix(expected);
+            return NN_ERROR_MEMORY_ALLOCATION;
+        }
+        if (!backPropagation(*nn, expected)) {
+            freeMatrix(input);
+            freeMatrix(expected);
+            return NN_ERROR_MEMORY_ALLOCATION;
+        }
 
         freeMatrix(input);
         freeMatrix(expected);
 
         if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) {
-            updateWeightsAndBiases(*nn, batchSize);
+            if (!updateWeightsAndBiases(*nn, batchSize))return NN_ERROR_MEMORY_ALLOCATION;
         }
     }
     return NN_OK;
 }
 
-void forward(NeuralNetwork nn, Matrix input) {
-    if (nn.activations[0].elements != NN_invalidP) {
-        freeMatrix(nn.activations[0]);
-    }    
+bool forward(NeuralNetwork nn, Matrix input) {
+    if (nn.activations[0].elements != MATRIX_invalidP) freeMatrix(nn.activations[0]);
     nn.activations[0] = copyMatrix(input);
+    if (nn.activations[0].elements == MATRIX_invalidP) return false;
 
     for (unsigned int i = 1; i < nn.layerCount; ++i) {
-        if (nn.activations[i].elements != NN_invalidP) {
+        if (nn.activations[i].elements != MATRIX_invalidP) {
             freeMatrix(nn.activations[i]);
         }
-        if (nn.outputs[i].elements != NN_invalidP) {
+        if (nn.outputs[i].elements != MATRIX_invalidP) {
             freeMatrix(nn.outputs[i]);
         }
 
         // compute new values
         Matrix result = multiplyMatrix(nn.activations[i - 1], nn.weights[i-1]);
+        if (result.elements == MATRIX_invalidP) return false;
         addMatrixInPlace(result, nn.biases[i-1]);
 
         nn.outputs[i] = copyMatrix(result);
+        if (nn.outputs[i].elements == MATRIX_invalidP) {
+            freeMatrix(result);
+            return false;
+        }
+
         nn.activations[i] = applyActivation(nn, result, i);
+        if (nn.activations[i].elements == MATRIX_invalidP) {
+            freeMatrix(result);
+            return false;
+        }
         freeMatrix(result);
     }
+    return true;
 }
 
-void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
+bool backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
     Matrix deltas = computeOutputLayerDeltas(nn, expectedOutput);
+    if (deltas.elements == MATRIX_invalidP) return false;
+
 
     // propagate error backward
     for (unsigned int i = nn.layerCount - 1; i > 0; --i) {
         Matrix transposedActivations = transposeMatrix(nn.activations[i - 1]);
+        if (transposedActivations.elements == MATRIX_invalidP) {
+            freeMatrix(deltas);
+            return false;
+        }
+
         Matrix weightGradients = multiplyMatrix(transposedActivations, deltas);  // compute weight gradients for layer, Weight gradients = activations[i-1]^T * deltas
+        if (weightGradients.elements == MATRIX_invalidP) {
+            freeMatrix(deltas);
+            freeMatrix(transposedActivations);
+            return false;
+        }
+
         addMatrixInPlace(nn.weightsGradients[i - 1], weightGradients);
 
         // free intermediate matrices
@@ -230,6 +301,11 @@ void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
 
         // compute bias gradients
         Matrix biasGradients = copyMatrix(deltas);
+        if (biasGradients.elements == MATRIX_invalidP) {
+            freeMatrix(deltas);
+            return false;
+        }
+
         addMatrixInPlace(nn.biasesGradients[i - 1], biasGradients);
         freeMatrix(biasGradients);
 
@@ -237,26 +313,50 @@ void backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
         // delta[l] = (W[l+1]^T * delta[l+1]) ⊙ af'(z[l])
         if (i > 1) {
             Matrix transposedWeights = transposeMatrix(nn.weights[i - 1]);
+            if (transposedWeights.elements == MATRIX_invalidP) {
+                freeMatrix(deltas);
+                return false;
+            }
+
             Matrix inputGradients = multiplyMatrix(deltas, transposedWeights);	// input gradients = deltas * weights[i]^T
+            if (inputGradients.elements == MATRIX_invalidP) {
+                freeMatrix(deltas);
+                freeMatrix(transposedWeights);
+                return false;
+            }
+
             freeMatrix(transposedWeights);
             freeMatrix(deltas);
 
             Matrix activationDerivative = computeActivationDerivative(nn.outputs[i - 1], nn.config.hiddenLayersAF);	// activation derivative = f'(outputs[i-1])
+            if (activationDerivative.elements == MATRIX_invalidP) {
+                freeMatrix(inputGradients);
+                return false;
+            }
+
             deltas = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// deltas for previous layer = inputGradients ⊙ activationDerivative
+            if (deltas.elements == MATRIX_invalidP) {
+                freeMatrix(inputGradients);
+                freeMatrix(activationDerivative);
+                return false;
+            }
+
             // free intermediate matrices
             freeMatrix(inputGradients);
             freeMatrix(activationDerivative);
         }
     }
     freeMatrix(deltas); // if (i > 1) skips deltas of first hidden layer
+    return true;
 }
 
-void updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize) {
+bool updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize) {
     // this loop can be parallelized
     for (unsigned int i = 0; i < nn.layerCount-1; ++i) {
         // update weights
         scaleMatrixInPlace(nn.weightsGradients[i], 1.0f / batchSize);
         Matrix scaledMatrix = scaleMatrix(nn.weightsGradients[i], nn.config.learningRate);
+        if (scaledMatrix.elements == MATRIX_invalidP) return false;
         subtractMatrixInPlace(nn.weights[i], scaledMatrix);
         freeMatrix(scaledMatrix);
         fillMatrix(nn.weightsGradients[i], 0.0f); // reset gradients
@@ -264,10 +364,12 @@ void updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize) {
         // update biases
         scaleMatrixInPlace(nn.biasesGradients[i], 1.0f / batchSize);
         scaledMatrix = scaleMatrix(nn.biasesGradients[i], nn.config.learningRate);
+        if (scaledMatrix.elements == MATRIX_invalidP) return false;
         subtractMatrixInPlace(nn.biases[i], scaledMatrix);
         freeMatrix(scaledMatrix);
         fillMatrix(nn.biasesGradients[i], 0.0f); // reset gradients
     }
+    return true;
 }
 
 Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput) {
@@ -276,11 +378,25 @@ Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput) {
     Matrix curLayerDeltas;
     if (nn.numOutputs > 1) { // multi output
         curLayerDeltas = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.config.lossFunction); // because the af derivative and the loss derivative simplify each other only one calculation is needed
+        if (curLayerDeltas.elements == MATRIX_invalidP) return {0, 0, MATRIX_invalidP};
     }
     else { // single output
         Matrix dLoss_dY = computeLossDerivative(predicted, expectedOutput, nn.config.lossFunction); // derivative of the loss function
+        if (dLoss_dY.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
+        
         Matrix activationDerivative = computeActivationDerivative(rawPredicted, nn.config.outputLayerAF);
+        if (activationDerivative.elements == MATRIX_invalidP) {
+            freeMatrix(dLoss_dY);
+            return { 0, 0, MATRIX_invalidP };
+        }
+
         curLayerDeltas = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // delta = dLoss_dY * derivative of the activation function with respect to the non-activated output
+        if (curLayerDeltas.elements == MATRIX_invalidP) {
+            freeMatrix(dLoss_dY);
+            freeMatrix(activationDerivative);
+            return { 0, 0, MATRIX_invalidP };
+        }
+
         freeMatrix(dLoss_dY);
         freeMatrix(activationDerivative);
     }
@@ -297,8 +413,8 @@ Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedO
 }
 
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf) {
-    Matrix derivative;
-    MatrixStatus err = createMatrix(outputs.rows, outputs.cols, &derivative); //if (err != MATRIX_OK) return matrixToNNStatus(err);
+    Matrix derivative = createMatrix(outputs.rows, outputs.cols);
+    if (derivative.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
     for (unsigned int j = 0; j < outputs.cols; j++) {
         derivative.elements[j] = lossDerivative(outputs.elements[j], expectedOutputs.elements[j], lf);
     }
@@ -318,8 +434,8 @@ float lossDerivative(float output, float expectedOutput, int lf) {
 }
 
 Matrix computeActivationDerivative(Matrix outputs, int af) {
-    Matrix derivative;
-    MatrixStatus err = createMatrix(outputs.rows, outputs.cols, &derivative); //if (err != MATRIX_OK) return matrixToNNStatus(err);
+    Matrix derivative = createMatrix(outputs.rows, outputs.cols);
+    if (derivative.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
     for (unsigned int i = 0; i < outputs.rows; i++) {
         for (unsigned int j = 0; j < outputs.cols; j++) {
             derivative.elements[i * derivative.cols + j] = AFDerivative(outputs.elements[i * outputs.cols + j], af);
@@ -347,12 +463,12 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, unsigned int iLayer) {
 
     if ((iLayer == nn.layerCount - 1) && (nn.numOutputs > 1)) { // try to apply non mutually exclusive multiple clases AFs first.
         activated = multipleOutputActivationFunction(mat, nn.config.outputLayerAF);
-        if (activated.elements != NN_invalidP) {
-            return activated;
-        }
+        if (activated.elements != MATRIX_invalidP) return activated;
     }
     
-    MatrixStatus err = createMatrix(mat.rows, mat.cols, &activated); //if (err != MATRIX_OK) return matrixToNNStatus(err);
+    activated = createMatrix(mat.rows, mat.cols);
+    if (activated.elements == MATRIX_invalidP) return {0,0,MATRIX_invalidP};
+
     // if they were not selected proceed with mutually exclusive AF.
     for (unsigned int i = 0; i < mat.rows; i++) {
         for (unsigned int j = 0; j < mat.cols; j++) {
@@ -391,12 +507,23 @@ float activationFunction(float x, int af) {
 
 NNStatus computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData, float *averageLoss) {
     if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if (averageLoss == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if ((trainingData.cols - nn->numOutputs) != nn->architecture[0]) return NN_ERROR_INVALID_ARGUMENT;
+    if ((trainingData.cols - nn->architecture[0]) != nn->numOutputs) return NN_ERROR_INVALID_ARGUMENT;
+
+
     unsigned int numSamples = trainingData.rows;
     float totalLoss = 0.0;
     
     for (unsigned int i = 0; i < numSamples; i++) {
         Matrix input = getSubMatrix(trainingData, i, 0, 1, trainingData.cols - nn->numOutputs);
+        if (input.elements == MATRIX_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
+
         Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn->numOutputs, 1, nn->numOutputs);
+        if (input.elements == MATRIX_invalidP) {
+            freeMatrix(input);
+            return NN_ERROR_MEMORY_ALLOCATION;
+        }
         
         forward(*nn, input);
         Matrix prediction = nn->activations[nn->layerCount - 1];
@@ -440,22 +567,38 @@ float loss(float output, float expectedOutput, int lf) {
 
 NNStatus computeAccuracyNN(NeuralNetwork *nn, Matrix dataset, float* accuracy) {
     if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if (accuracy == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if ((dataset.cols - nn->numOutputs) != nn->architecture[0]) return NN_ERROR_INVALID_ARGUMENT;
+    if ((dataset.cols - nn->architecture[0]) != nn->numOutputs) return NN_ERROR_INVALID_ARGUMENT;
+
+
     if(nn->numOutputs>1) {
-        *accuracy = computeMultiClassAccuracy(*nn, dataset);
+        if (!computeMultiClassAccuracy(*nn, dataset, accuracy))return NN_ERROR_MEMORY_ALLOCATION;
     }else {
-        *accuracy = computeSingleOutputAccuracy(*nn, dataset);
+        if (!computeSingleOutputAccuracy(*nn, dataset, accuracy)) return NN_ERROR_MEMORY_ALLOCATION;
     }
 
     return NN_OK;
 }
 
-float computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
+bool computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset, float* out) {
     int correct = 0;
     for(unsigned int i=0; i<dataset.rows; i++) {
         Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - nn.numOutputs);
+        if (input.elements == MATRIX_invalidP) return false;
+
         Matrix output = getSubMatrix(dataset, i, dataset.cols - nn.numOutputs, 1, nn.numOutputs);
+        if (output.elements == MATRIX_invalidP) {
+            freeMatrix(input);
+            return false;
+        }
         
-        forward(nn, input);
+        if (!forward(nn, input)) {
+            freeMatrix(input);
+            freeMatrix(output);
+            return false;
+        }
+        
         Matrix pred = nn.activations[nn.layerCount-1];
         
         int predClass = 0;
@@ -479,16 +622,29 @@ float computeMultiClassAccuracy(NeuralNetwork nn, Matrix dataset) {
         freeMatrix(input);
         freeMatrix(output);
     }
-    return (float)correct/dataset.rows*100;
+    *out = (float)correct/dataset.rows*100;
+    return true;
 }
 
-float computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
+bool computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset, float* out) {
     unsigned int numSamples = dataset.rows;
     int correct = 0;
     for (unsigned int i = 0; i < numSamples; i++) {
         Matrix input = getSubMatrix(dataset, i, 0, 1, dataset.cols - 1);
+        if (input.elements == MATRIX_invalidP) return false;
+
         Matrix expected = getSubMatrix(dataset, i, dataset.cols - 1, 1, 1);
-        forward(nn, input);
+        if (expected.elements == MATRIX_invalidP) {
+            freeMatrix(input);
+            return false;
+        }
+
+        if (!forward(nn, input)) {
+            freeMatrix(input);
+            freeMatrix(expected);
+            return false;
+        }
+
         float prediction = nn.activations[nn.layerCount - 1].elements[0];
         int predictedLabel = (prediction >= 0.5) ? 1 : 0;
         int trueLabel = (int) expected.elements[0];
@@ -498,7 +654,8 @@ float computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset) {
         freeMatrix(input);
         freeMatrix(expected);
     }
-    return (float) correct / numSamples * 100;
+    *out= (float) correct / numSamples * 100;
+    return true;
 }
 
 NNStatus saveStateNN(NeuralNetwork *nn, const char* fileName){
@@ -515,9 +672,12 @@ NNStatus loadStateNN(const char* filename, NeuralNetwork* nn) {
 }
 
 NNStatus predictNN(NeuralNetwork* nn, Matrix input, Matrix* output) {
-    forward(*nn, input);
-    *output = copyMatrix(nn->activations[nn->layerCount - 1]);
+    if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if (input.cols != nn->architecture[0]) return NN_ERROR_INVALID_ARGUMENT;
 
+    if (!forward(*nn, input)) return NN_ERROR_MEMORY_ALLOCATION;
+    *output = copyMatrix(nn->activations[nn->layerCount - 1]);
+    if (output->elements == MATRIX_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
     return NN_OK;
 }
 
@@ -585,8 +745,8 @@ float sigmoidDerivative(float sig) {
 }
 
 Matrix softmax(Matrix mat) {
-    Matrix result;
-    MatrixStatus err = createMatrix(mat.rows, mat.cols, &result); //if (err != MATRIX_OK) return matrixToNNStatus(err);
+    Matrix result = createMatrix(mat.rows, mat.cols);
+    if (result.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
 
     for (unsigned int i = 0; i < mat.rows; i++) {
         float max = mat.elements[i * mat.cols];
@@ -733,20 +893,5 @@ const char* NNStatusToString(NNStatus code) {
         default:
             return "Unknown error";
             break;
-    }
-}
-
-NNStatus matrixToNNStatus(MatrixStatus err) {
-    switch (err) {
-    case MATRIX_ERROR_DIMENSION_MISMATCH:
-        return NN_ERROR_INVALID_ARGUMENT;
-    case MATRIX_ERROR_MEMORY_ALLOCATION:
-        return NN_ERROR_MEMORY_ALLOCATION;
-    case MATRIX_ERROR_OUTOFBOUNDS:
-        return NN_ERROR_INVALID_ARGUMENT;
-    case MATRIX_OK:
-        return NN_OK;
-    default:
-        return NN_ERROR_UNKNOWN;
     }
 }

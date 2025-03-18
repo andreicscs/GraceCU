@@ -28,6 +28,7 @@
 * 
 * TODO list:
 *   find out why layerCount < 2 in createNeuralNetwork generates stupid warnings.
+*   implement load state and save state functions.
 *   improve documentation.
 *   implement a validate NN function. (can be used to validate NNs loaded from file (?))
 *   implement regularization.
@@ -448,7 +449,7 @@ float AFDerivative(float x, int af) {
     switch (af) {
     case NN_ACTIVATION_SIGMOID:
     {
-        sigmoidDerivative(sigmoid(x));
+        return sigmoidDerivative(sigmoid(x));
     }
     case NN_ACTIVATION_RELU:
         return reluDerivative(x);
@@ -520,7 +521,7 @@ NNStatus computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData, float *ave
         if (input.elements == MATRIX_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
 
         Matrix expected = getSubMatrix(trainingData, i, trainingData.cols - nn->numOutputs, 1, nn->numOutputs);
-        if (input.elements == MATRIX_invalidP) {
+        if (expected.elements == MATRIX_invalidP) {
             freeMatrix(input);
             return NN_ERROR_MEMORY_ALLOCATION;
         }

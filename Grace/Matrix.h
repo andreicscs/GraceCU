@@ -22,15 +22,15 @@ typedef struct {
 	float* elements; // 1d array containing matrix data
 } Matrix;
 
-MatrixStatus createMatrix(int rows, int cols, Matrix *out); // throw
+MatrixStatus createMatrix(int rows, int cols, Matrix *out);
 void freeMatrix(Matrix mat);
 Matrix multiplyMatrix(Matrix a, Matrix b); // throw
 Matrix multiplyMatrixElementWise(Matrix a, Matrix b); // throw
 void scaleMatrixInPlace(Matrix mat, float scalar);
 Matrix scaleMatrix(Matrix mat, float scalar);
-MatrixStatus addMatrixInPlace(Matrix a, Matrix b); // throw
+MatrixStatus addMatrixInPlace(Matrix a, Matrix b);
 Matrix addMatrix(Matrix a, Matrix b); // throw
-MatrixStatus subtractMatrixInPlace(Matrix a, Matrix b); // throw
+MatrixStatus subtractMatrixInPlace(Matrix a, Matrix b);
 Matrix subtractMatrix(Matrix a, Matrix b); // throw
 void fillMatrix(Matrix mat, float value);
 Matrix getSubMatrix(Matrix mat, int startRow, int startCol, int numRows, int numCols); // throw

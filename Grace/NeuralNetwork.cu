@@ -87,6 +87,7 @@ float initializationFunction(NNInitializationFunction weightInitializerF, unsign
 
 NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA) {
     if (architecture == NN_invalidP || nnA == NN_invalidP || *nnA == NN_invalidP || layerCount < 2) { // !!TODO why in the world does checking layerCount < 2 cause so many warnings?        return NN_ERROR_INVALID_ARGUMENT;
+        return NN_ERROR_INVALID_ARGUMENT;
     }
 
 

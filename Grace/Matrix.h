@@ -2,6 +2,7 @@
 #define MATRIX_H
 
 #define MATRIX_invalidP NULL
+#include <stdio.h>
 
 // !!TODO look into ways to improve information hiding
 typedef struct {
@@ -26,5 +27,7 @@ Matrix transposeMatrix(Matrix mat);
 void printMatrix(Matrix mat);
 Matrix copyMatrix(Matrix src);
 float sumMatrix(Matrix src);
+bool storeMatrix(Matrix mat, FILE *fpOut);
+bool loadMatrix(FILE *fpIn, Matrix *out);
 
 #endif // MATRIX_H

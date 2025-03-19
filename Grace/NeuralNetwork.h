@@ -67,7 +67,7 @@ typedef struct NNConfig {
 *
 * @return NNStatus: returns error code.
 */
-NNStatus createNeuralNetwork(const int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA);
+NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA);
 
 /**
 * This function frees the allocated memory of a neuralNetwork.
@@ -90,24 +90,25 @@ NNStatus freeNeuralNetwork(NeuralNetwork *nn);
 NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize);
 
 /**
-* This function saves the current state of the neural network allowing it to be used without training.
+* This function saves the current state of the neural network allowing it to be used without training. doesn't close file!
+* all values are saved allowing to continue training after reloading the nn.
 *
-* @param fileName: the name of the file the nn will be stored in. file extension must be included
+* @param fpOut: the file the nn will be stored in
 * @param *nn: pointer to the neuralNetwork data structure.
 *
 * @return NNStatus: returns error code.
 */
-NNStatus saveStateNN(NeuralNetwork *nn, const char* fileName);
+NNStatus saveStateNN(NeuralNetwork *nn, FILE *fpOut);
 
 /**
-* This function loads the saved state of the neural network from a file.
+* This function loads the saved state of the neural network from a file. doesn't close file!
 * 
-* @param *filename: path of the file where the saved nn is stored.
+* @param fpIn: the file where the nn is stored
 * @param *nn: pointer to the neuralNetwork data structure, the function will use this address to return the nn.
 *
 * @return NNStatus: returns error code.
 */
-NNStatus loadStateNN(const char* filename, NeuralNetwork* nn);
+NNStatus loadStateNN(FILE *fpIn, NeuralNetwork **nn);
 
 /**
 * This function uses the already trained neuralNetwork to predict the output of a given input.

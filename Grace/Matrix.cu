@@ -241,3 +241,47 @@ float sumMatrix(Matrix src) {
 	}
 	return result;
 }
+
+bool storeMatrix(Matrix mat, FILE *fpOut) {
+	if (fpOut == NULL) {
+		return false;
+	}
+
+	size_t writtenElements = fwrite(&mat.rows, sizeof(unsigned int), 1, fpOut);
+	if (writtenElements != 1) return false;
+	
+	writtenElements = fwrite(&mat.cols, sizeof(unsigned int), 1, fpOut);
+	if (writtenElements != 1) return false;
+	
+	size_t elementsToWrite = mat.rows * mat.cols;
+	writtenElements = fwrite(mat.elements, sizeof(float), elementsToWrite, fpOut);
+	if (writtenElements!= elementsToWrite) return false;
+	
+	return true;
+}
+
+bool loadMatrix(FILE *fpIn, Matrix *out) {
+	if (fpIn == NULL) {
+		return false;
+	}
+	
+	unsigned int rows, cols;
+	size_t readElements = fread(&rows, sizeof(unsigned int), 1, fpIn);
+	if (readElements != 1) return false;
+
+	readElements = fread(&cols, sizeof(unsigned int), 1, fpIn);
+	if (readElements != 1) return false;
+
+	*out = createMatrix(rows, cols);
+	if (out->elements == MATRIX_invalidP)return false;
+
+	size_t elementsToRead = out->rows * out->cols;
+
+	readElements = fread(out->elements, sizeof(float), elementsToRead, fpIn);
+	if (readElements != elementsToRead) {
+		freeMatrix(*out);
+		return false;
+	}
+
+	return true;
+}

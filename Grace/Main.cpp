@@ -14,8 +14,6 @@
 
 
 int main(){
-    
-    // Load and preprocess data
     char trainFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_train.csv";
     char testFilePath [] = "C:\\Users\\termi\\Desktop\\mnist_test.csv";
 
@@ -30,8 +28,6 @@ int main(){
     freeMatrix(normalizedTrainData);
     freeMatrix(trainLabels);
     
-
-    
     // load and preprocess test data
     Matrix rawTestData = loadMNIST(testFilePath, numTestSamples);
     Matrix normalizedTestData = normalizeData(rawTestData);
@@ -40,10 +36,7 @@ int main(){
     freeMatrix(normalizedTestData);
     freeMatrix(testLabels);
     
-
-    //int architecture[] = { 784, 128, 64, 10 };
-    int architecture[] = { 784, 10 };
-
+    unsigned int architecture[] = { 784, 10, 10 };
 
     NNConfig config;
     config.learningRate = 0.1f;
@@ -52,13 +45,25 @@ int main(){
     config.outputLayerAF = NN_ACTIVATION_SOFTMAX;
     config.lossFunction = NN_LOSS_CCE;
 
-    NeuralNetwork* nn;
+    NeuralNetwork* nn=NULL;
     
     NNStatus err;
-    
+    /*
+    FILE* fpIn = fopen("network_state.bin", "rb");
+    if (fpIn == NULL) {
+        printf("Failed to open file.\n");
+        freeMatrix(trainDataset);
+        freeMatrix(testDataset);
+        return -1;
+    }
+    err = loadStateNN(fpIn, &nn);
+    fclose(fpIn);
+    */
     err=createNeuralNetwork(architecture, 2, config, &nn);
-    if (err!=0) {
+    if (err!=NN_OK) {
         printf("createNeuralNetowork: %s\n", NNStatusToString(err));
+        freeMatrix(trainDataset);
+        freeMatrix(testDataset);
         return -1;
     }
    
@@ -72,8 +77,11 @@ int main(){
         clock_t begin = clock();
 
         err=trainNN(nn, trainDataset, batchSize);
-        if (err != 0) {
+        if (err != NN_OK) {
             printf("trainNN: %s\n", NNStatusToString(err));
+            freeNeuralNetwork(nn);
+            freeMatrix(trainDataset);
+            freeMatrix(testDataset);
             return -1;
         }
         computeAverageLossNN(nn, trainDataset, &loss);
@@ -90,18 +98,31 @@ int main(){
         printf("Epoch time: %f, seconds\n", dur);        
     }
 
-    err=freeNeuralNetwork(nn);
-    if (err != 0) {
-        printf("freeNeuralNetwork: %s\n", NNStatusToString(err));
+    
+    /*
+    FILE* fpOut = fopen("network_state.bin", "wb");
+    if (fpOut == NULL) {
+        printf("Failed to open file.\n");
+        freeNeuralNetwork(nn);
+        freeMatrix(trainDataset);
+        freeMatrix(testDataset);
         return -1;
     }
-    
+    err = saveStateNN(nn, fpOut);
+    fclose(fpOut);
+    if (err != NN_OK) {
+        printf("saveStateNN: %s\n", NNStatusToString(err));
+        freeNeuralNetwork(nn);
+        freeMatrix(trainDataset);
+        freeMatrix(testDataset);
+        return -1;
+    }
+    */
+
+    freeNeuralNetwork(nn);
     freeMatrix(trainDataset);
     freeMatrix(testDataset);
-
-    
     _CrtDumpMemoryLeaks();
-
     return 0;
 }
 

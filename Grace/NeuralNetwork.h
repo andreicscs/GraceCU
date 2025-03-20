@@ -63,11 +63,11 @@ typedef struct NNConfig {
 * @param *architecture: pointer to the architecture array, each value rapresents the number of neurons of that layer. EX. The first layer (architecture[0]) is the input layer, the last layer is the output layer.
 * @param layerCount: the length of the architecture array, i.e. the number of layers of the neural network.
 * @param config: structure that contains options for the neuralNetwork that can be set by the user.
-* @param **nnA: pointer to the pointer of the neuralNetwork data structure, the function will use this address to return the nn.
+* @param **nnP: pointer to the pointer of the neuralNetwork data structure, the function will use this address to return the nn.
 *
 * @return NNStatus: returns error code.
 */
-NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA);
+NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnP);
 
 /**
 * This function frees the allocated memory of a neuralNetwork.
@@ -104,11 +104,11 @@ NNStatus saveStateNN(NeuralNetwork *nn, FILE *fpOut);
 * This function loads the saved state of the neural network from a file. doesn't close file!
 * 
 * @param fpIn: the file where the nn is stored
-* @param *nn: pointer to the neuralNetwork data structure, the function will use this address to return the nn.
+* @param **nnP: pointer to the pointer of the neuralNetwork data structure, the function will use this address to return the nn.
 *
 * @return NNStatus: returns error code.
 */
-NNStatus loadStateNN(FILE *fpIn, NeuralNetwork **nn);
+NNStatus loadStateNN(FILE *fpIn, NeuralNetwork **nnP);
 
 /**
 * This function uses the already trained neuralNetwork to predict the output of a given input.

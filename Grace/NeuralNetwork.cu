@@ -29,12 +29,10 @@
 *   LF(multiple output) : CCE AND SOFTMAX DERIVATIVE
 * 
 * TODO list:
-*   implement a validate NN function. should check 
-*   implement a better way to check input and malloc in load state and save state functions. (validate NN??!)
 *   improve documentation.
+*   write tests.
 *   implement regularization.
 *   implement optimizers.
-*   write tests.
 *   implement cuda kernels for gpu parallelied computations.
 *   
 */
@@ -85,62 +83,36 @@ float sigmoidDerivative(float sig);
 NNStatus checkNNConfig(NNConfig config);
 const char* NNStatusToString(NNStatus code);
 float initializationFunction(NNInitializationFunction weightInitializerF, unsigned int nIn, unsigned int nOut);
+NNStatus allocateNNMatricesArrays(NeuralNetwork *nn);
+NNStatus validateNNSettings(NeuralNetwork *nn);
 
-NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnA) {
-    if (architecture == NN_invalidP || nnA == NN_invalidP || layerCount < 2) {
-        return NN_ERROR_INVALID_ARGUMENT;
-    }
-    for (unsigned int i = 0; i < layerCount; ++i) {
-        if(architecture[i]<1) return NN_ERROR_INVALID_ARGUMENT;
-    }
-
+NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnP) {
     NeuralNetwork *nn = (NeuralNetwork*) malloc(sizeof(NeuralNetwork));
     if (nn == NN_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
-    
-    NNStatus err;
-    err=checkNNConfig(config);
-    if (err != 0) {
-        free(nn);
-        return err;
-    }
-    
 
     nn->architecture = (unsigned int*)malloc(layerCount * sizeof(unsigned int));
     if (nn->architecture == NN_invalidP) {
-        free(nn);
+        freeNeuralNetwork(nn);
         return NN_ERROR_MEMORY_ALLOCATION;
     }
-    memcpy((void*)nn->architecture, architecture, layerCount * sizeof(unsigned int)); // memory is copied to avoid storing the pointer directly which might cause errors if the original pointer is freed
+    // memory is copied to avoid storing the pointer directly which might cause errors if the original pointer is freed
+    memcpy((void*)nn->architecture, architecture, layerCount * sizeof(unsigned int)); 
 
     nn->layerCount = layerCount;
     nn->numOutputs = nn->architecture[nn->layerCount - 1];
-
-    nn->weights = NN_invalidP;
-    nn->biases = NN_invalidP;
-    nn->weightsGradients = NN_invalidP;
-    nn->biasesGradients = NN_invalidP;
-    nn->outputs = NN_invalidP;
-    nn->activations = NN_invalidP;
     nn->config = config;
     
-    nn->weights = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
-    if (nn->weights == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+    NNStatus err = validateNNSettings(nn);
+    if (err != NN_OK) {
+        freeNeuralNetwork(nn);
+        return err;
+    }
 
-    nn->biases = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
-    if (nn->biases == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
-
-    nn->weightsGradients = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
-    if (nn->weightsGradients == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
-
-    nn->biasesGradients = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
-    if (nn->biasesGradients == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
-
-    nn->outputs = (Matrix*)malloc(sizeof(Matrix) * nn->layerCount);
-    if (nn->outputs == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
-
-    nn->activations = (Matrix*)malloc(sizeof(Matrix) * nn->layerCount);
-    if (nn->activations == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
-    
+    err=allocateNNMatricesArrays(nn);
+    if (err != NN_OK) {
+        freeNeuralNetwork(nn);
+        return err;
+    }
 
     /*
      * Allocating and initializing weights, biases, and gradients for layers 0 to layerCount-2.
@@ -178,8 +150,56 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
         nn->activations[i] = { 0, 0, MATRIX_invalidP };
     }
 
-    *nnA = nn;
+    *nnP = nn;
 	return NN_OK;
+}
+
+NNStatus validateNNSettings(NeuralNetwork* nn) {
+    if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
+    if (nn->architecture == NN_invalidP || nn->layerCount < 2) {
+        return NN_ERROR_INVALID_ARGUMENT;
+    }
+    for (unsigned int i = 0; i < nn->layerCount; ++i) {
+        if (nn->architecture[i] < 1) return NN_ERROR_INVALID_ARGUMENT;
+    }
+
+    NNStatus err;
+    err = checkNNConfig(nn->config);
+    if (err != NN_OK) {
+        return err;
+    }
+
+    return NN_OK;
+}
+
+NNStatus allocateNNMatricesArrays(NeuralNetwork* nn) {
+    nn->weights = NN_invalidP;
+    nn->biases = NN_invalidP;
+    nn->weightsGradients = NN_invalidP;
+    nn->biasesGradients = NN_invalidP;
+    nn->outputs = NN_invalidP;
+    nn->activations = NN_invalidP;
+
+
+    nn->weights = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->weights == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->biases = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->biases == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->weightsGradients = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->weightsGradients == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->biasesGradients = (Matrix*)malloc(sizeof(Matrix) * (nn->layerCount - 1));
+    if (nn->biasesGradients == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->outputs = (Matrix*)malloc(sizeof(Matrix) * nn->layerCount);
+    if (nn->outputs == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    nn->activations = (Matrix*)malloc(sizeof(Matrix) * nn->layerCount);
+    if (nn->activations == NN_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
+
+    return NN_OK;
 }
 
 NNStatus freeNeuralNetwork(NeuralNetwork *nn) {
@@ -243,9 +263,13 @@ NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize)
         freeMatrix(input);
         freeMatrix(expected);
 
-        if ((i + 1) % batchSize == 0 || i == trainingData.rows - 1) {
+        if (i == trainingData.rows - 1) { // if traincount is not a multiple of batchsize.
+            if (!updateWeightsAndBiases(*nn, trainCount%batchSize))return NN_ERROR_MEMORY_ALLOCATION;
+        }else if ((i + 1) % batchSize == 0) {
             if (!updateWeightsAndBiases(*nn, batchSize))return NN_ERROR_MEMORY_ALLOCATION;
         }
+
+
     }
     return NN_OK;
 }
@@ -670,7 +694,7 @@ bool computeSingleOutputAccuracy(NeuralNetwork nn, Matrix dataset, float* out) {
 }
 
 NNStatus saveStateNN(NeuralNetwork *nn, FILE* fpOut){
-    if (fpOut == NULL) {
+    if (fpOut == NN_invalidP) {
         return NN_ERROR_INVALID_ARGUMENT;
     }
 
@@ -698,19 +722,23 @@ NNStatus saveStateNN(NeuralNetwork *nn, FILE* fpOut){
     return NN_OK;
 }
 
-NNStatus loadStateNN(FILE* fpIn, NeuralNetwork** nn) {
-    if (fpIn == NULL) {
+NNStatus loadStateNN(FILE* fpIn, NeuralNetwork** nnP) {
+    if (fpIn == NN_invalidP) {
         return NN_ERROR_INVALID_ARGUMENT;
     }
+    NeuralNetwork* nn = (NeuralNetwork*)malloc(sizeof(NeuralNetwork));
+    if (nn == NN_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
+
     unsigned int layerCount;
     size_t readElements = fread(&layerCount, sizeof(unsigned int), 1, fpIn);
     if (readElements != 1) return NN_ERROR_IO_FILE;
     
     unsigned int* architecture = (unsigned int*)malloc(layerCount * sizeof(unsigned int));
-    if (architecture == NULL) return NN_ERROR_MEMORY_ALLOCATION;
+    if (architecture == NN_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
     readElements = fread(architecture, sizeof(unsigned int), layerCount, fpIn);
     if (readElements != layerCount) {
         free(architecture);
+        architecture = NN_invalidP;
         return NN_ERROR_IO_FILE;
     }
 
@@ -718,48 +746,67 @@ NNStatus loadStateNN(FILE* fpIn, NeuralNetwork** nn) {
     readElements = fread(&config, sizeof(NNConfig), 1, fpIn);
     if (readElements != 1) {
         free(architecture);
+        architecture = NN_invalidP;
         return NN_ERROR_IO_FILE;
     }
-    // calling createNeuralNetwork for convinience, but it also allocates memory for each matrix, which needs to be freed before reallocating it.
-    NNStatus err = createNeuralNetwork(architecture, layerCount, config, nn);  // TODO find a better way to validate inputs and allocating memory.
-    free(architecture);
-    if (err != NN_OK) return err;
     
+    nn->architecture = (unsigned int*)malloc(layerCount * sizeof(unsigned int));
+    if (nn->architecture == NN_invalidP) {
+        free(architecture);
+        architecture = NN_invalidP;
+        freeNeuralNetwork(nn);
+        return NN_ERROR_MEMORY_ALLOCATION;
+    }
+    // memory is copied to avoid storing the pointer directly which might cause errors if the original pointer is freed
+    memcpy((void*)nn->architecture, architecture, layerCount * sizeof(unsigned int));
+    free(architecture);
+    architecture = NN_invalidP;
+    nn->layerCount = layerCount;
+    nn->numOutputs = nn->architecture[nn->layerCount - 1];
+    nn->config = config;
 
-    for (unsigned int i = 0; i < (*nn)->layerCount - 1; ++i) {
-        freeMatrix((*nn)->weights[i]);
-        if (!loadMatrix(fpIn, &(*nn)->weights[i])) {
-            freeNeuralNetwork((*nn));
+    NNStatus err = validateNNSettings(nn);
+    if (err != NN_OK) {
+        freeNeuralNetwork(nn);
+        return err;
+    }
+    
+    err = allocateNNMatricesArrays(nn);
+    if (err != NN_OK) {
+        freeNeuralNetwork(nn);
+        return err;
+    }
+
+    for (unsigned int i = 0; i < nn->layerCount - 1; ++i) {
+        if (!loadMatrix(fpIn, &nn->weights[i])) {
+            freeNeuralNetwork(nn);
             return NN_ERROR_IO_FILE; // could also return error becouse of failed malloc.
         }
-        freeMatrix((*nn)->biases[i]);
-        if (!loadMatrix(fpIn, &(*nn)->biases[i])) {
-            freeNeuralNetwork((*nn));
+        if (!loadMatrix(fpIn, &nn->biases[i])) {
+            freeNeuralNetwork(nn);
             return NN_ERROR_IO_FILE;
         }
-        freeMatrix((*nn)->weightsGradients[i]);
-        if (!loadMatrix(fpIn, &(*nn)->weightsGradients[i])) {
-            freeNeuralNetwork((*nn));
+        if (!loadMatrix(fpIn, &nn->weightsGradients[i])) {
+            freeNeuralNetwork(nn);
             return NN_ERROR_IO_FILE;
         }
-        freeMatrix((*nn)->biasesGradients[i]);
-        if (!loadMatrix(fpIn, &(*nn)->biasesGradients[i])) {
-            freeNeuralNetwork((*nn));
+        if (!loadMatrix(fpIn, &nn->biasesGradients[i])) {
+            freeNeuralNetwork(nn);
             return NN_ERROR_IO_FILE;
         }
     }
-    for (unsigned int i = 0; i < (*nn)->layerCount; ++i) {
-        freeMatrix((*nn)->outputs[i]);
-        if (!loadMatrix(fpIn, &(*nn)->outputs[i])) {
-            freeNeuralNetwork((*nn));
+    for (unsigned int i = 0; i < nn->layerCount; ++i) {
+        if (!loadMatrix(fpIn, &nn->outputs[i])) {
+            freeNeuralNetwork(nn);
             return NN_ERROR_IO_FILE;
         }
-        freeMatrix((*nn)->activations[i]);
-        if (!loadMatrix(fpIn, &(*nn)->activations[i])) {
-            freeNeuralNetwork((*nn));
+        if (!loadMatrix(fpIn, &nn->activations[i])) {
+            freeNeuralNetwork(nn);
             return NN_ERROR_IO_FILE;
         }
     }
+
+    *nnP = nn;
     return NN_OK;
 }
 

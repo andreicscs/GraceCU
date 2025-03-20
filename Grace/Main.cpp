@@ -48,18 +48,15 @@ int main(){
     NeuralNetwork* nn=NULL;
     
     NNStatus err;
-    /*
     FILE* fpIn = fopen("network_state.bin", "rb");
-    if (fpIn == NULL) {
-        printf("Failed to open file.\n");
-        freeMatrix(trainDataset);
-        freeMatrix(testDataset);
-        return -1;
+    if (fpIn != NULL) {
+        err = loadStateNN(fpIn, &nn);
+        fclose(fpIn);
+    }else{
+        printf("Failed to load NN.\n");
+        err=createNeuralNetwork(architecture, 2, config, &nn);
+
     }
-    err = loadStateNN(fpIn, &nn);
-    fclose(fpIn);
-    */
-    err=createNeuralNetwork(architecture, 2, config, &nn);
     if (err!=NN_OK) {
         printf("createNeuralNetowork: %s\n", NNStatusToString(err));
         freeMatrix(trainDataset);
@@ -99,7 +96,7 @@ int main(){
     }
 
     
-    /*
+    
     FILE* fpOut = fopen("network_state.bin", "wb");
     if (fpOut == NULL) {
         printf("Failed to open file.\n");
@@ -117,7 +114,7 @@ int main(){
         freeMatrix(testDataset);
         return -1;
     }
-    */
+    
 
     freeNeuralNetwork(nn);
     freeMatrix(trainDataset);

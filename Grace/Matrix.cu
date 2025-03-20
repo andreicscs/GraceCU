@@ -15,8 +15,8 @@
 
 /**
 * TODO list:
-*   write documentation
 *	write tests.
+*   write documentation
 *   implement cuda kernels for gpu parallelied computations.
 *
 */

@@ -29,8 +29,8 @@
 *   LF(multiple output) : CCE AND SOFTMAX DERIVATIVE
 * 
 * TODO list:
-*   improve documentation.
 *   write tests.
+*   improve documentation.
 *   implement regularization.
 *   implement optimizers.
 *   implement cuda kernels for gpu parallelied computations.

@@ -107,13 +107,13 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
         freeNeuralNetwork(nn);
         return err;
     }
-
+    
     err=allocateNNMatricesArrays(nn);
     if (err != NN_OK) {
         freeNeuralNetwork(nn);
         return err;
     }
-
+    
     /*
      * Allocating and initializing weights, biases, and gradients for layers 0 to layerCount-2.
      * initializing weights using the selected initialization method and biases to 0.01 (which helps prevent dead neurons).
@@ -135,7 +135,6 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
         if (nn->biasesGradients[i].elements == MATRIX_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
         #pragma warning( default : 6386 6385 )
 
-        // he initialization
         float stddev = initializationFunction(nn->config.weightInitializerF, nn->weights[i].rows, nn->weights[i].cols);
         float mean = 0.0f;
         initializeMatrixRand(nn->weights[i], mean, stddev);
@@ -263,11 +262,12 @@ NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize)
         freeMatrix(input);
         freeMatrix(expected);
 
-        if (i == trainingData.rows - 1) { // if traincount is not a multiple of batchsize.
-            if (!updateWeightsAndBiases(*nn, trainCount%batchSize))return NN_ERROR_MEMORY_ALLOCATION;
+        if (i == trainCount - 1) { // if traincount is not a multiple of batchsize.
+            if (!updateWeightsAndBiases(*nn, trainCount-1%batchSize))return NN_ERROR_MEMORY_ALLOCATION;
         }else if ((i + 1) % batchSize == 0) {
             if (!updateWeightsAndBiases(*nn, batchSize))return NN_ERROR_MEMORY_ALLOCATION;
         }
+
 
 
     }

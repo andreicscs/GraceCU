@@ -36,7 +36,7 @@ int main(){
     freeMatrix(normalizedTestData);
     freeMatrix(testLabels);
     
-    unsigned int architecture[] = { 784, 10, 10 };
+    unsigned int architecture[] = { 784, 10 };
 
     NNConfig config;
     config.learningRate = 0.1f;

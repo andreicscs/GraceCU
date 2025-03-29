@@ -32,7 +32,7 @@
 * TODO list:
 *   write tests, since the api is quite restrictive, the options are: Known Answer Tests, to test public apis, or implementing a "test helper" header that makes all functions and structs that need to be tested public for easier and more in depth testing.
 *   improve documentation, write a read me with complete api documnetation, and how to install and run the project.
-*   implement data loading functions, consider taking nn_config as param.
+*   implement data loading and processing functions, consider taking nn_config as param.
 *   implement regularization.
 *   implement optimizers.
 *   implement cuda kernels for gpu parallelied computations.

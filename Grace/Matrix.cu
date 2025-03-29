@@ -21,40 +21,10 @@
 *
 */
 
-__global__ void matMulKernel(float* res, float* a, float* b, int resRows, int resCols, int aCols, int bCols);
-__global__ void matAdd();
-bool isGpuAvailable();
-
-
-
-__global__ void matMulKernel(float* res, float* a, float* b, int resRows, int resCols, int aCols, int bCols) {
-	int row = blockIdx.y * blockDim.y + threadIdx.y;
-	int col = blockIdx.x * blockDim.x + threadIdx.x;
-	if (row < resRows && col < resCols) {
-		float sum = 0.0;
-		for (unsigned int k = 0; k < aCols; k++) {
-			sum += a[row * aCols + k] * b[k * bCols + col];
-		}
-		res[row * resCols + col] = sum;
-	}
-}
-
-__global__ void matAdd() {
-
-}
-
-
-bool isGpuAvailable() {
-	int deviceCount = 0;
-	cudaError_t error = cudaGetDeviceCount(&deviceCount);
-	if (error != cudaSuccess || deviceCount == 0) {
-		return false;
-	}
-	return true;
-}
+const Matrix EMPTY_MATRIX = { 0, 0, NULL };
 
 Matrix copyMatrix(Matrix src) {
-	if(src.elements==MATRIX_invalidP)return { 0,0,MATRIX_invalidP };
+	if(src.elements==MATRIX_invalidP)return EMPTY_MATRIX ;
 	Matrix dest = createMatrix(src.rows, src.cols);
 	for (unsigned int i = 0; i < src.rows * src.cols; ++i) {
 		dest.elements[i] = src.elements[i];
@@ -68,7 +38,7 @@ Matrix createMatrix(unsigned int rows, unsigned int cols) {
 	mat.rows = rows;
 	mat.cols = cols;
 	mat.elements = (float*)malloc(rows * cols * sizeof(float));
-	if (mat.elements == NULL)return { 0,0,MATRIX_invalidP };
+	if (mat.elements == NULL)return EMPTY_MATRIX ;
 
 	return mat;
 }
@@ -83,7 +53,7 @@ void freeMatrix(Matrix mat) {
 
 Matrix multiplyMatrix(Matrix a, Matrix b) {
 	if (a.cols != b.rows) {
-		return { 0,0,MATRIX_invalidP };
+		return EMPTY_MATRIX ;
 	}
 
 	Matrix result = createMatrix(a.rows, b.cols);
@@ -101,7 +71,7 @@ Matrix multiplyMatrix(Matrix a, Matrix b) {
 
 Matrix multiplyMatrixElementWise(Matrix a, Matrix b) {
 	if (a.rows != b.rows || a.cols != b.cols) {
-		return { 0,0,MATRIX_invalidP };
+		return EMPTY_MATRIX ;
 	}
 	Matrix result = createMatrix(a.rows, a.cols);
 	for (unsigned int i = 0; i < a.rows; i++) {
@@ -123,7 +93,7 @@ bool scaleMatrixInPlace(Matrix mat, float scalar) {
 }
 
 Matrix scaleMatrix(Matrix mat, float scalar) {
-	if (mat.elements == NULL)return { 0,0,MATRIX_invalidP };
+	if (mat.elements == NULL)return EMPTY_MATRIX ;
 	Matrix result = createMatrix(mat.rows, mat.cols);
 	for (unsigned int i = 0; i < mat.rows; i++) {
 		for (unsigned int j = 0; j < mat.cols; j++) {
@@ -147,7 +117,7 @@ bool addMatrixInPlace(Matrix a, Matrix b) {
 }
 
 Matrix addMatrix(Matrix a, Matrix b) {
-	if (a.rows != b.rows || a.cols != b.cols) return { 0,0,MATRIX_invalidP };
+	if (a.rows != b.rows || a.cols != b.cols) return EMPTY_MATRIX ;
 
 	Matrix result = createMatrix(a.rows, a.cols);
 
@@ -173,7 +143,7 @@ bool subtractMatrixInPlace(Matrix a, Matrix b) {
 }
 
 Matrix subtractMatrix(Matrix a, Matrix b) {
-	if (a.rows != b.rows || a.cols != b.cols) return { 0,0,MATRIX_invalidP };
+	if (a.rows != b.rows || a.cols != b.cols) return EMPTY_MATRIX ;
 
 	Matrix result = createMatrix(a.rows, a.cols);
 
@@ -197,7 +167,7 @@ bool fillMatrix(Matrix mat, float value) {
 
 Matrix getSubMatrix(Matrix mat, unsigned int startRow, unsigned int startCol, unsigned int numRows, unsigned int numCols) {
 	if (startRow + numRows > mat.rows || startCol + numCols > mat.cols) {
-		return { 0,0,MATRIX_invalidP };
+		return EMPTY_MATRIX ;
 	}
 
 	Matrix subMatrix = createMatrix(numRows, numCols);
@@ -210,7 +180,7 @@ Matrix getSubMatrix(Matrix mat, unsigned int startRow, unsigned int startCol, un
 }
 
 Matrix transposeMatrix(Matrix mat) {
-	if (mat.elements == NULL)return { 0,0,MATRIX_invalidP };
+	if (mat.elements == NULL)return EMPTY_MATRIX ;
 	Matrix transposed = createMatrix(mat.cols, mat.rows);
 
 	for (unsigned int i = 0; i < mat.rows; i++) {
@@ -229,17 +199,6 @@ void printMatrix(Matrix mat) {
 		}
 		printf("\n");
 	}
-}
-
-float sumMatrix(Matrix src) {
-	if (src.elements == NULL)return MATRIX_invalidP;
-	float result = 0.0;
-	for (unsigned int i = 0; i < src.rows; ++i) {
-		for (unsigned int j = 0; j < src.cols; ++j) {
-			result += src.elements[i * src.cols + j];
-		}
-	}
-	return result;
 }
 
 bool storeMatrix(Matrix mat, FILE *fpOut) {

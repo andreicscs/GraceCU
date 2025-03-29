@@ -14,6 +14,7 @@
 #include "NeuralNetwork.h"
 #include "Matrix.h"
 #include <string.h>
+#include <stdbool.h>
 
 /**
 * 
@@ -29,8 +30,9 @@
 *   LF(multiple output) : CCE AND SOFTMAX DERIVATIVE
 * 
 * TODO list:
-*   write tests.
-*   improve documentation.
+*   write tests, since the api is quite restrictive, the options are: Known Answer Tests, to test public apis, or implementing a "test helper" header that makes all functions and structs that need to be tested public for easier and more in depth testing.
+*   improve documentation, write a read me with complete api documnetation, and how to install and run the project.
+*   implement data loading functions, consider taking nn_config as param.
 *   implement regularization.
 *   implement optimizers.
 *   implement cuda kernels for gpu parallelied computations.
@@ -145,8 +147,8 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
 
     }
     for (unsigned int i = 0; i < nn->layerCount; ++i) {
-        nn->outputs[i] = { 0, 0, MATRIX_invalidP };
-        nn->activations[i] = { 0, 0, MATRIX_invalidP };
+        nn->outputs[i] = EMPTY_MATRIX ;
+        nn->activations[i] = EMPTY_MATRIX ;
     }
 
     *nnP = nn;
@@ -413,23 +415,23 @@ Matrix computeOutputLayerDeltas(NeuralNetwork nn, Matrix expectedOutput) {
     Matrix curLayerDeltas;
     if (nn.numOutputs > 1) { // multi output
         curLayerDeltas = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.config.lossFunction); // because the af derivative and the loss derivative simplify each other only one calculation is needed
-        if (curLayerDeltas.elements == MATRIX_invalidP) return {0, 0, MATRIX_invalidP};
+        if (curLayerDeltas.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
     }
     else { // single output
         Matrix dLoss_dY = computeLossDerivative(predicted, expectedOutput, nn.config.lossFunction); // derivative of the loss function
-        if (dLoss_dY.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
+        if (dLoss_dY.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
         
         Matrix activationDerivative = computeActivationDerivative(rawPredicted, nn.config.outputLayerAF);
         if (activationDerivative.elements == MATRIX_invalidP) {
             freeMatrix(dLoss_dY);
-            return { 0, 0, MATRIX_invalidP };
+            return EMPTY_MATRIX ;
         }
 
         curLayerDeltas = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // delta = dLoss_dY * derivative of the activation function with respect to the non-activated output
         if (curLayerDeltas.elements == MATRIX_invalidP) {
             freeMatrix(dLoss_dY);
             freeMatrix(activationDerivative);
-            return { 0, 0, MATRIX_invalidP };
+            return EMPTY_MATRIX ;
         }
 
         freeMatrix(dLoss_dY);
@@ -449,7 +451,7 @@ Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedO
 
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf) {
     Matrix derivative = createMatrix(outputs.rows, outputs.cols);
-    if (derivative.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
+    if (derivative.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
     for (unsigned int j = 0; j < outputs.cols; j++) {
         derivative.elements[j] = lossDerivative(outputs.elements[j], expectedOutputs.elements[j], lf);
     }
@@ -470,7 +472,7 @@ float lossDerivative(float output, float expectedOutput, int lf) {
 
 Matrix computeActivationDerivative(Matrix outputs, int af) {
     Matrix derivative = createMatrix(outputs.rows, outputs.cols);
-    if (derivative.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
+    if (derivative.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
     for (unsigned int i = 0; i < outputs.rows; i++) {
         for (unsigned int j = 0; j < outputs.cols; j++) {
             derivative.elements[i * derivative.cols + j] = AFDerivative(outputs.elements[i * outputs.cols + j], af);
@@ -502,7 +504,7 @@ Matrix applyActivation(NeuralNetwork nn, Matrix mat, unsigned int iLayer) {
     }
     
     activated = createMatrix(mat.rows, mat.cols);
-    if (activated.elements == MATRIX_invalidP) return {0,0,MATRIX_invalidP};
+    if (activated.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
 
     // if they were not selected proceed with mutually exclusive AF.
     for (unsigned int i = 0; i < mat.rows; i++) {
@@ -885,7 +887,7 @@ float sigmoidDerivative(float sig) {
 
 Matrix softmax(Matrix mat) {
     Matrix result = createMatrix(mat.rows, mat.cols);
-    if (result.elements == MATRIX_invalidP) return { 0,0,MATRIX_invalidP };
+    if (result.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
 
     for (unsigned int i = 0; i < mat.rows; i++) {
         float max = mat.elements[i * mat.cols];

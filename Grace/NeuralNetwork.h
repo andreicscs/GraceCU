@@ -57,6 +57,10 @@ typedef struct NNConfig {
     NNLossFunction lossFunction;
 }NNConfig;
 
+#ifdef __cplusplus // for c++ compatibility
+extern "C" {
+#endif
+
 /**
 * This function creates, allocates memory, and initializes a neuralNetwork structure.
 *
@@ -158,5 +162,9 @@ NNStatus computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData, float *ave
 */
 const char* NNStatusToString(NNStatus code);
 
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif
 
 #endif // NN_H

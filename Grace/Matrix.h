@@ -3,6 +3,7 @@
 
 #define MATRIX_invalidP NULL
 #include <stdio.h>
+#include <stdbool.h>
 
 // !!TODO look into ways to improve information hiding
 typedef struct {
@@ -10,6 +11,12 @@ typedef struct {
 	unsigned int cols;
 	float* elements; // 1d array containing matrix data
 } Matrix;
+
+extern const Matrix EMPTY_MATRIX;
+
+#ifdef __cplusplus // for c++ compatibility
+extern "C" {
+#endif
 
 Matrix createMatrix(unsigned int rows, unsigned int cols);
 void freeMatrix(Matrix mat);
@@ -26,8 +33,10 @@ Matrix getSubMatrix(Matrix mat, unsigned int startRow, unsigned int startCol, un
 Matrix transposeMatrix(Matrix mat);
 void printMatrix(Matrix mat);
 Matrix copyMatrix(Matrix src);
-float sumMatrix(Matrix src);
 bool storeMatrix(Matrix mat, FILE *fpOut);
 bool loadMatrix(FILE *fpIn, Matrix *out);
 
+#ifdef __cplusplus
+} // end extern "C"
+#endif
 #endif // MATRIX_H

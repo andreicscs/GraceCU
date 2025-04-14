@@ -1,5 +1,4 @@
-# Work in Progress
-
+# GraceCU
 ## 📘 Background & Evolution
 This project originally began as part of the [GRACE](https://github.com/Fairswing/Grace) learning initiative, which was created for educational purposes to explore the fundamentals of artificial intelligence and how to implement a basic neural network from scratch using backpropagation and gradient descent.
 However, as the scope grew, the neural network component evolved into a standalone, general-purpose neural network library, independent from the original GRACE application. The codebase now focuses on building a performant, modular deep learning library with extensible features.

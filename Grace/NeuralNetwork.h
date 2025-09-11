@@ -33,11 +33,13 @@ typedef enum {
     NN_INITIALIZATION_XAVIER_UNIFORM,
 
 } NNInitializationFunction;
+
 typedef enum {
     NN_ACTIVATION_SIGMOID,
     NN_ACTIVATION_RELU,
     NN_ACTIVATION_SOFTMAX,
 } NNActivationFunction;
+
 typedef enum {
     NN_LOSS_CCE,
     NN_LOSS_MSE,
@@ -62,7 +64,7 @@ extern "C" {
 #endif
 
 /**
-* This function creates, allocates memory, and initializes a neuralNetwork structure.
+* This function creates, allocates memory, and initializes a neuralNetwork structure, the user needs to initialize the random number generator seed ( srand((unsigned int)time(NULL)); ).
 *
 * @param *architecture: pointer to the architecture array, each value rapresents the number of neurons of that layer. EX. The first layer (architecture[0]) is the input layer, the last layer is the output layer.
 * @param layerCount: the length of the architecture array, i.e. the number of layers of the neural network.
@@ -102,7 +104,7 @@ NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize)
 *
 * @return NNStatus: returns error code.
 */
-NNStatus saveStateNN(NeuralNetwork *nn, FILE *fpOut);
+NNStatus saveStateNN(const NeuralNetwork *nn, FILE *fpOut);
 
 /**
 * This function loads the saved state of the neural network from a file. doesn't close file!
@@ -125,7 +127,7 @@ NNStatus loadStateNN(FILE *fpIn, NeuralNetwork **nnP);
 * @return NNStatus: returns error code.
 * 
 */
-NNStatus predictNN(NeuralNetwork *nn, Matrix input, Matrix *output);
+NNStatus predictNN(const NeuralNetwork *nn, Matrix input, Matrix *output);
 
 
 /**
@@ -139,7 +141,7 @@ NNStatus predictNN(NeuralNetwork *nn, Matrix input, Matrix *output);
 * @return NNStatus: returns error code.
 *
 */
-NNStatus computeAccuracyNN(NeuralNetwork *nn, Matrix dataset, float *accuracy);
+NNStatus computeAccuracyNN(const NeuralNetwork *nn, Matrix dataset, float *accuracy);
 
 /**
 * This function computes the average loss of the output of the neural network on a given dataset.
@@ -150,7 +152,7 @@ NNStatus computeAccuracyNN(NeuralNetwork *nn, Matrix dataset, float *accuracy);
 * 
 * @return NNStatus: returns error code.
 */
-NNStatus computeAverageLossNN(NeuralNetwork *nn, Matrix trainingData, float *averageLoss);
+NNStatus computeAverageLossNN(const NeuralNetwork *nn, Matrix trainingData, float *averageLoss);
 
 
 /**

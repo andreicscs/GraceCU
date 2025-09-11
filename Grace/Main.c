@@ -48,7 +48,7 @@ int main() {
     NeuralNetwork* nn = NULL;
 
     NNStatus err;
-    FILE* fpIn = fopen("network_state.binTODOO", "rb");
+    FILE* fpIn = fopen("network_state.bin", "rb");
     if (fpIn != NULL) {
         err = loadStateNN(fpIn, &nn);
         fclose(fpIn);

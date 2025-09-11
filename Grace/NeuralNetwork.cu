@@ -408,7 +408,7 @@ Matrix computeOutputLayerDeltas(const NeuralNetwork nn, Matrix expectedOutput) {
     Matrix rawPredicted = nn.outputs[nn.layerCount - 1];
     Matrix curLayerDeltas;
     if (nn.numOutputs > 1) { // multi output
-        curLayerDeltas = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.config.lossFunction); // because the af derivative and the loss derivative simplify each other only one calculation is needed
+        curLayerDeltas = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.config.lossFunction); // because the af derivative and the loss derivative simplify each other using NN_LOSS_CCE and NN_ACTIVATION_SOFTMAX only one calculation is needed, to revisit once other loss functions will be implemented
         if (curLayerDeltas.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
     }
     else { // single output

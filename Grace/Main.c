@@ -14,6 +14,8 @@
 
 
 int main() {
+    srand((unsigned int)time(NULL));
+
     char trainFilePath[] = "C:\\Users\\termi\\Desktop\\mnist_train.csv";
     char testFilePath[] = "C:\\Users\\termi\\Desktop\\mnist_test.csv";
 

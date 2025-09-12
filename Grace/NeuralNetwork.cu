@@ -1,16 +1,10 @@
 // check memory leaks
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-
-#ifdef _DEBUG
-#define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include "NeuralNetworkDebug.h"
 #include "NeuralNetwork.h"
 #include "Matrix.h"
 #include <string.h>
@@ -27,7 +21,7 @@
 *   AF(multiple output) : SOFTMAX
 *   AF DERIVATIVE(multiple output) : CCE AND SOFTMAX DERIVATIVE
 *   LF(multiple output) : CCE
-*   LF(multiple output) : CCE AND SOFTMAX DERIVATIVE
+*   LF DERIVATIVE (multiple output) : CCE AND SOFTMAX DERIVATIVE
 * 
 * TODO list:
 *   write tests, since the api is quite restrictive, the options are: Known Answer Tests, to test public apis, or implementing a "test helper" header that makes all functions and structs that need to be tested public for easier and more in depth testing.
@@ -39,6 +33,9 @@
 *   
 */
 
+// if the debug header is being used, don't define the struct twice
+#ifndef NN_STRUCT
+#define NN_STRUCT
 struct NeuralNetwork {
     const unsigned int* architecture;
     unsigned int layerCount;
@@ -51,6 +48,7 @@ struct NeuralNetwork {
     unsigned int numOutputs;
     NNConfig config;
 };
+#endif
 
 bool forward(NeuralNetwork nn, Matrix input);
 bool backPropagation(NeuralNetwork nn, Matrix expectedOutput);
@@ -87,6 +85,8 @@ const char* NNStatusToString(NNStatus code);
 float initializationFunction(NNInitializationFunction weightInitializerF, unsigned int nIn, unsigned int nOut);
 NNStatus allocateNNMatricesArrays(NeuralNetwork *nn);
 NNStatus validateNNSettings(const NeuralNetwork *nn);
+
+
 
 NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnP) {
     NeuralNetwork *nn = (NeuralNetwork*) malloc(sizeof(NeuralNetwork));
@@ -276,6 +276,7 @@ bool forward(NeuralNetwork nn, Matrix input) {
     nn.activations[0] = copyMatrix(input);
     if (nn.activations[0].elements == MATRIX_invalidP) return false;
 
+    // skip input layer
     for (unsigned int i = 1; i < nn.layerCount; ++i) {
         if (nn.activations[i].elements != MATRIX_invalidP) {
             freeMatrix(nn.activations[i]);
@@ -317,7 +318,7 @@ bool backPropagation(NeuralNetwork nn, Matrix expectedOutput) {
             return false;
         }
 
-        Matrix weightGradients = multiplyMatrix(transposedActivations, deltas);  // compute weight gradients for layer, Weight gradients = activations[i-1]^T * deltas
+        Matrix weightGradients = multiplyMatrix(transposedActivations, deltas);  // compute weight gradients for each layer, Weight gradients = activations[i-1]^T * deltas
         if (weightGradients.elements == MATRIX_invalidP) {
             freeMatrix(deltas);
             freeMatrix(transposedActivations);
@@ -934,14 +935,14 @@ Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected) {
 
 float BCEloss(float output, float expectedOutput) {
     // clip output to avoid log(0)
-    output = NN_epsilon >= (1 - NN_epsilon <= output ? 1 - NN_epsilon : output) ? NN_epsilon : (1 - NN_epsilon <= output ? 1 - NN_epsilon : output);
-    return -(expectedOutput * log(output) + (1 - expectedOutput) * log(1 - output));
+    float clipped_output = fmaxf(NN_epsilon, fminf(1.0f - NN_epsilon, output));
+    return -(expectedOutput * log(clipped_output) + (1 - expectedOutput) * log(1 - clipped_output));
 }
 
 float BCElossDerivative(float output, float expectedOutput) {
     // clip output to avoid division by zero
-    output = NN_epsilon >= (1 - NN_epsilon <= output ? 1 - NN_epsilon : output) ? NN_epsilon : (1 - NN_epsilon <= output ? 1 - NN_epsilon : output);
-    return (output - expectedOutput) / (output * (1 - output));
+    float clipped_output = fmaxf(NN_epsilon, fminf(1.0f - NN_epsilon, output));
+    return (clipped_output - expectedOutput) / (clipped_output * (1 - clipped_output));
 }
 
 float MSEloss(float output, float expectedOutput) {
@@ -1020,7 +1021,7 @@ const char* NNStatusToString(NNStatus code) {
             return "The selected loss function and activation function combination is invalid or unsupported";
             break;
         case NN_ERROR_IO_FILE:
-            return "An error occured while storing / loading NeuralNetwork struct.";
+            return "An error occured while storing / loading the NeuralNetwork.";
             break;
         case NN_ERROR_UNKNOWN:
             return "The error was not recognized";

@@ -1,6 +1,10 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#ifdef __cplusplus // for c++ compatibility
+extern "C" {
+#endif
+
 #define MATRIX_invalidP NULL
 #include <stdio.h>
 #include <stdbool.h>
@@ -14,9 +18,7 @@ typedef struct {
 
 extern const Matrix EMPTY_MATRIX;
 
-#ifdef __cplusplus // for c++ compatibility
-extern "C" {
-#endif
+
 
 Matrix createMatrix(unsigned int rows, unsigned int cols);
 void freeMatrix(Matrix mat);

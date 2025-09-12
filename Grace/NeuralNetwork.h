@@ -1,6 +1,10 @@
 #ifndef NN_H
 #define NN_H
 
+#ifdef __cplusplus // for c++ compatibility
+extern "C" {
+#endif
+
 /**
 * 
 * A simple NeuralNetwork library that implements basic functions to be able to train and test a neural network.
@@ -59,12 +63,9 @@ typedef struct NNConfig {
     NNLossFunction lossFunction;
 }NNConfig;
 
-#ifdef __cplusplus // for c++ compatibility
-extern "C" {
-#endif
 
 /**
-* This function creates, allocates memory, and initializes a neuralNetwork structure, the user needs to initialize the random number generator seed ( srand((unsigned int)time(NULL)); ).
+* @overview This function creates, allocates memory, and initializes a neuralNetwork structure with the given configuration, the user needs to initialize the random number generator seed ( srand((unsigned int)time(NULL)); ).
 *
 * @param *architecture: pointer to the architecture array, each value rapresents the number of neurons of that layer. EX. The first layer (architecture[0]) is the input layer, the last layer is the output layer.
 * @param layerCount: the length of the architecture array, i.e. the number of layers of the neural network.
@@ -72,6 +73,10 @@ extern "C" {
 * @param **nnP: pointer to the pointer of the neuralNetwork data structure, the function will use this address to return the nn.
 *
 * @return NNStatus: returns error code.
+* 
+* @pre layerCount matches the *architecture length. 
+* @post On success, *nnP points to a valid NeuralNetwork object allocated on the heap.
+* @post The **nnP NeuralNetwork has its weights and biases initialized according to config.
 */
 NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnP);
 
@@ -81,6 +86,8 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
 * @param *nn: pointer to the neuralNetwork data structure.
 *
 * @return NNStatus: returns error code.
+* 
+* @post All the allocated memory of the *nnP neuralnetwork will be freed.
 */
 NNStatus freeNeuralNetwork(NeuralNetwork *nn);
 
@@ -92,8 +99,11 @@ NNStatus freeNeuralNetwork(NeuralNetwork *nn);
 * @param batchSize: the size of the single batches the training data will be split in, after which the weights and biases update. 1 for Stochastic gradient descent, 1<batchSize<trainingDataSize for mini batches, trainingDataSize for full batch training
 *
 * @return NNStatus: returns error code.
+* 
+* @pre trainingData must be formatted using this library's standard.
+* @post the nn will have it's weigths and biases adjusted according to their calculated gradients during backprop.
 */
-NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize);
+NNStatus trainNN(NeuralNetwork *nn, const Matrix trainingData, const unsigned int batchSize);
 
 /**
 * This function saves the current state of the neural network allowing it to be used without training. doesn't close file!
@@ -103,6 +113,9 @@ NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize)
 * @param *nn: pointer to the neuralNetwork data structure.
 *
 * @return NNStatus: returns error code.
+* 
+* @pre the nn must be 
+* 
 */
 NNStatus saveStateNN(const NeuralNetwork *nn, FILE *fpOut);
 

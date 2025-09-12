@@ -133,7 +133,6 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
 
         nn->biasesGradients[i] = createMatrix(1, architecture[i + 1]); 
         if (nn->biasesGradients[i].elements == MATRIX_invalidP) { freeNeuralNetwork(nn); return NN_ERROR_MEMORY_ALLOCATION; }
-        #pragma warning( default : 6386 6385 )
 
         float stddev = initializationFunction(nn->config.weightInitializerF, nn->weights[i].rows, nn->weights[i].cols);
         float mean = 0.0f;

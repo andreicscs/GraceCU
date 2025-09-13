@@ -91,6 +91,13 @@ NNStatus validateNNSettings(const NeuralNetwork *nn);
 NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnP) {
     NeuralNetwork *nn = (NeuralNetwork*) malloc(sizeof(NeuralNetwork));
     if (nn == NN_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
+    nn->activations = NN_invalidP;
+    nn->architecture = NN_invalidP;
+    nn->biases = NN_invalidP;
+    nn->biasesGradients = NN_invalidP;
+    nn->outputs = NN_invalidP;
+    nn->weights = NN_invalidP;
+    nn->weightsGradients = NN_invalidP;
 
     nn->architecture = (unsigned int*)malloc(layerCount * sizeof(unsigned int));
     if (nn->architecture == NN_invalidP) {
@@ -274,7 +281,7 @@ bool forward(NeuralNetwork nn, Matrix input) {
     if (nn.activations[0].elements != MATRIX_invalidP) freeMatrix(nn.activations[0]);
     nn.activations[0] = copyMatrix(input);
     if (nn.activations[0].elements == MATRIX_invalidP) return false;
-
+    
     // skip input layer
     for (unsigned int i = 1; i < nn.layerCount; ++i) {
         if (nn.activations[i].elements != MATRIX_invalidP) {
@@ -828,18 +835,18 @@ float initializationFunction(NNInitializationFunction weightInitializerF, unsign
             return NN_epsilon;
             break;
         case NN_INITIALIZATION_HE:
-            return sqrt(2.0f / nIn);
+            return sqrtf(2.0f / nIn);
             break;
         case NN_INITIALIZATION_HE_UNIFORM:
-            return sqrt(6.0f / nIn);
+            return sqrtf(6.0f / nIn);
             break;
         case NN_INITIALIZATION_XAVIER:
-            return sqrt(2.0f / nIn+nOut);
+            return sqrtf(2.0f / (nIn+nOut));
             break;
         case NN_INITIALIZATION_XAVIER_UNIFORM:
-            return sqrt(6.0f / nIn + nOut);
+            return sqrtf(6.0f / (nIn + nOut));
             break;
-        default: return sqrt(2.0f / nIn); // default to HE
+        default: return sqrtf(2.0f / nIn); // default to HE
     }
 }
 
@@ -857,7 +864,7 @@ float randomNormal(float mean, float stddev) {
 
     if (u1 < NN_epsilon) u1= NN_epsilon; // avoid log(0) errors
 
-    float z0 = (float)(sqrt(-2.0f * log(u1)) * cos(2.0f * M_PI * u2));
+    float z0 = (float)(sqrtf(-2.0f * log(u1)) * cos(2.0f * M_PI * u2));
     
     return mean + stddev * z0;
 }
@@ -933,15 +940,19 @@ Matrix CCElossDerivativeMatrix(Matrix predicted, Matrix expected) {
 }
 
 float BCEloss(float output, float expectedOutput) {
+    // handle perfect predictions exactly to avoid floating point issues
+    if ((expectedOutput == 1.0f && output == 1.0f) ||
+        (expectedOutput == 0.0f && output == 0.0f)) {
+        return 0.0f;
+    }
+
     // clip output to avoid log(0)
     float clipped_output = fmaxf(NN_epsilon, fminf(1.0f - NN_epsilon, output));
     return -(expectedOutput * log(clipped_output) + (1 - expectedOutput) * log(1 - clipped_output));
 }
 
 float BCElossDerivative(float output, float expectedOutput) {
-    // clip output to avoid division by zero
-    float clipped_output = fmaxf(NN_epsilon, fminf(1.0f - NN_epsilon, output));
-    return (clipped_output - expectedOutput) / (clipped_output * (1 - clipped_output));
+    return  output - expectedOutput; //simplified derivative
 }
 
 float MSEloss(float output, float expectedOutput) {
@@ -957,8 +968,16 @@ float MSElossDerivative(float output, float expectedOutput) {
     return error;
 }
 
+void createNNConfig(NNConfig *config) {
+    config->learningRate = -1.0f;
+    config->hiddenLayersAF = (NNActivationFunction) 1000;
+    config->lossFunction = (NNLossFunction) 1000;
+    config->outputLayerAF = (NNActivationFunction) 1000;
+    config->weightInitializerF = (NNInitializationFunction) 1000;
+}
+
 NNStatus checkNNConfig(NNConfig config) {
-    if (config.learningRate <= 0)return NN_ERROR_INVALID_LEARNING_RATE;
+    if (config.learningRate <= 0.0f)return NN_ERROR_INVALID_LEARNING_RATE;
 
     switch (config.hiddenLayersAF){
         case NN_ACTIVATION_SIGMOID: break;
@@ -985,7 +1004,7 @@ NNStatus checkNNConfig(NNConfig config) {
         case NN_LOSS_BCE: break;
         default: return NN_ERROR_INVALID_LOSS_FUNCTION;
     }
-
+    
     return NN_OK;
 }
 

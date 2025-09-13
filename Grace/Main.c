@@ -2,9 +2,6 @@
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 
-#ifdef _DEBUG
-#define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +38,7 @@ int main() {
     unsigned int architecture[] = { 784, 128, 64, 10 };
 
     NNConfig config;
+    createNNConfig(&config);
     config.learningRate = 0.1f;
     config.weightInitializerF = NN_INITIALIZATION_HE;
     config.hiddenLayersAF = NN_ACTIVATION_RELU;
@@ -122,6 +120,5 @@ int main() {
     freeNeuralNetwork(nn);
     freeMatrix(trainDataset);
     freeMatrix(testDataset);
-    _CrtDumpMemoryLeaks();
     return 0;
 }

@@ -9,9 +9,6 @@ extern "C" {
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 
-#ifdef _DEBUG
-#define malloc(s) _malloc_dbg(s, _NORMAL_BLOCK, __FILE__, __LINE__)
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>

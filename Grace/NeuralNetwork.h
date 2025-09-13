@@ -63,6 +63,14 @@ typedef struct NNConfig {
     NNLossFunction lossFunction;
 }NNConfig;
 
+/**
+* @overview this function initializes config with invalid values so that it can then be checked for values not set by the user, since values like learningRate being float are not initialized and crash the program if accessed.
+* 
+* @param config: NNConfig variable to initialize.
+* @return void.
+* @post config: initialized NNConfig.
+*/
+void createNNConfig(NNConfig *config);
 
 /**
 * @overview This function creates, allocates memory, and initializes a neuralNetwork structure with the given configuration, the user needs to initialize the random number generator seed ( srand((unsigned int)time(NULL)); ).
@@ -75,6 +83,7 @@ typedef struct NNConfig {
 * @return NNStatus: returns error code.
 * 
 * @pre layerCount matches the *architecture length. 
+* @pre config must be initialized by initializeNNConfig();
 * @post On success, *nnP points to a valid NeuralNetwork object allocated on the heap.
 * @post The **nnP NeuralNetwork has its weights and biases initialized according to config.
 */
@@ -87,6 +96,7 @@ NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned in
 *
 * @return NNStatus: returns error code.
 * 
+* @pre nn must be created using createNeuralNetwork() beforehand.
 * @post All the allocated memory of the *nnP neuralnetwork will be freed.
 */
 NNStatus freeNeuralNetwork(NeuralNetwork *nn);

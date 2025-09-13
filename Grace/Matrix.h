@@ -5,6 +5,10 @@
 extern "C" {
 #endif
 
+// Enable CRT memory leak detection (Windows only)
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+
 #define MATRIX_invalidP NULL
 #include <stdio.h>
 #include <stdbool.h>

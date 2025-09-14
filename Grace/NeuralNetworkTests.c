@@ -320,6 +320,230 @@ void testForwardPass() {
 
 
 
+void testBackwardPass() {
+    printf("Testing backward pass...\n");
+
+    unsigned int arch[] = { 2, 2, 1 };
+    NeuralNetwork* nn = NULL;
+
+    NNConfig config;
+    createNNConfig(&config);
+    config.learningRate = 0.1f;
+    config.hiddenLayersAF = NN_ACTIVATION_SIGMOID;
+    config.outputLayerAF = NN_ACTIVATION_SIGMOID;
+    config.weightInitializerF = NN_INITIALIZATION_HE;
+    config.lossFunction = NN_LOSS_BCE;
+
+    NNStatus status = createNeuralNetwork(arch, 3, config, &nn);
+    assert(status == NN_OK);
+
+    // set known weights (same as forward test)
+    nn->weights[0].elements[0] = 0.5f;  // w11
+    nn->weights[0].elements[1] = -0.5f; // w12  
+    nn->weights[0].elements[2] = 0.3f;  // w21
+    nn->weights[0].elements[3] = 0.8f;  // w22
+    nn->biases[0].elements[0] = 0.0f;
+    nn->biases[0].elements[1] = 0.0f;
+
+    nn->weights[1].elements[0] = 0.7f;   // w11
+    nn->weights[1].elements[1] = -1.2f;  // w21
+    nn->biases[1].elements[0] = 0.0f;
+
+    // input and target
+    Matrix input = createMatrix(1, 2);
+    input.elements[0] = 1.0f;
+    input.elements[1] = 0.0f;
+
+    Matrix target = createMatrix(1, 1);
+    target.elements[0] = 1.0f;  // we want output to be 1.0
+
+    bool ok = forward(*nn, input);
+    assert(ok);
+
+    // save initial weights for comparison
+    float initial_w1_11 = nn->weights[0].elements[0];
+    float initial_w1_12 = nn->weights[0].elements[1];
+    float initial_w1_21 = nn->weights[0].elements[2];
+    float initial_w1_22 = nn->weights[0].elements[3];
+
+    float initial_w2_11 = nn->weights[1].elements[0];
+    float initial_w2_21 = nn->weights[1].elements[1];
+
+    ok = backPropagation(*nn, target);
+    assert(ok);
+
+    //TODO implement known value tests for better testing
+
+    // check that gradients were computed (not 0)
+    assert(fabs(nn->weightsGradients[1].elements[0]) > 1e-6f);
+    assert(fabs(nn->weightsGradients[1].elements[1]) > 1e-6f);
+    assert(fabs(nn->biasesGradients[1].elements[0]) > 1e-6f);
+
+    assert(fabs(nn->weightsGradients[0].elements[0]) > 1e-6f);
+    assert(fabs(nn->weightsGradients[0].elements[1]) > 1e-6f);
+    // weights connected to the 0 input should have 0 gradients
+    assert(fequal(nn->weightsGradients[0].elements[2], 0.0f));
+    assert(fequal(nn->weightsGradients[0].elements[3], 0.0f));
+
+    assert(fabs(nn->biasesGradients[0].elements[0]) > 1e-6f);
+    assert(fabs(nn->biasesGradients[0].elements[1]) > 1e-6f);
+
+    freeMatrix(input);
+    freeMatrix(target);
+    freeNeuralNetwork(nn);
+}
+
+void testWeightUpdate() {
+    printf("Testing weight update...\n");
+
+    unsigned int arch[] = { 2, 2, 1 };
+    NeuralNetwork* nn = NULL;
+
+    NNConfig config;
+    createNNConfig(&config);
+    config.learningRate = 0.1f;
+    config.hiddenLayersAF = NN_ACTIVATION_SIGMOID;
+    config.outputLayerAF = NN_ACTIVATION_SIGMOID;
+    config.weightInitializerF = NN_INITIALIZATION_HE;
+    config.lossFunction = NN_LOSS_BCE;
+
+    NNStatus status = createNeuralNetwork(arch, 3, config, &nn);
+    assert(status == NN_OK);
+
+    // set known weights
+    nn->weights[0].elements[0] = 0.5f;
+    nn->weights[0].elements[1] = -0.5f;
+    nn->weights[0].elements[2] = 0.3f;
+    nn->weights[0].elements[3] = 0.8f;
+    nn->biases[0].elements[0] = 0.0f;
+    nn->biases[0].elements[1] = 0.0f;
+
+    nn->weights[1].elements[0] = 0.7f;
+    nn->weights[1].elements[1] = -1.2f;
+    nn->biases[1].elements[0] = 0.0f;
+
+    Matrix input = createMatrix(1, 2);
+    input.elements[0] = 1.0f;
+    input.elements[1] = 0.0f;
+
+    Matrix target = createMatrix(1, 1);
+    target.elements[0] = 1.0f;
+
+    bool ok = forward(*nn, input);
+    assert(ok);
+    ok = backPropagation(*nn, target);
+    assert(ok);
+
+    // save initial values
+    float initial_weights[6] = {
+        nn->weights[0].elements[0], nn->weights[0].elements[1],
+        nn->weights[0].elements[2], nn->weights[0].elements[3],
+        nn->weights[1].elements[0], nn->weights[1].elements[1]
+    };
+
+    float initial_biases[3] = {
+        nn->biases[0].elements[0], nn->biases[0].elements[1],
+        nn->biases[1].elements[0]
+    };
+
+    ok = updateWeightsAndBiases(*nn, 1);
+    assert(ok);
+
+    //TODO implement known value tests for better testing
+
+
+    // check that weights changed
+    // weights connected to non0 input should change
+    assert(fabs(nn->weights[0].elements[0] - initial_weights[0]) > 1e-6f);  // w11
+    assert(fabs(nn->weights[0].elements[1] - initial_weights[1]) > 1e-6f);  // w12
+
+    // weights connected to 0 input should not change
+    assert(fequal(nn->weights[0].elements[2], initial_weights[2]));  // w21 = 0.3
+    assert(fequal(nn->weights[0].elements[3], initial_weights[3]));  // w22 = 0.8
+
+    // output layer weights should change
+    assert(fabs(nn->weights[1].elements[0] - initial_weights[4]) > 1e-6f);  // w2_11
+    assert(fabs(nn->weights[1].elements[1] - initial_weights[5]) > 1e-6f);  // w2_21
+
+    // all biases should change
+    assert(fabs(nn->biases[0].elements[0] - initial_biases[0]) > 1e-6f);  // b1_1
+    assert(fabs(nn->biases[0].elements[1] - initial_biases[1]) > 1e-6f);  // b1_2
+    assert(fabs(nn->biases[1].elements[0] - initial_biases[2]) > 1e-6f);  // b2
+
+    freeMatrix(input);
+    freeMatrix(target);
+    freeNeuralNetwork(nn);
+}
+
+void testTrainingLoop() {
+    printf("Testing training loop...\n");
+
+    unsigned int arch[] = { 2, 2, 1 };
+    NeuralNetwork* nn = NULL;
+
+    NNConfig config;
+    createNNConfig(&config);
+    config.learningRate = 0.1f;
+    config.hiddenLayersAF = NN_ACTIVATION_SIGMOID;
+    config.outputLayerAF = NN_ACTIVATION_SIGMOID;
+    config.weightInitializerF = NN_INITIALIZATION_HE;
+    config.lossFunction = NN_LOSS_BCE;
+
+    NNStatus status = createNeuralNetwork(arch, 3, config, &nn);
+    assert(status == NN_OK);
+
+    // set known weights
+    nn->weights[0].elements[0] = 0.5f;
+    nn->weights[0].elements[1] = -0.5f;
+    nn->weights[0].elements[2] = 0.3f;
+    nn->weights[0].elements[3] = 0.8f;
+    nn->biases[0].elements[0] = 0.0f;
+    nn->biases[0].elements[1] = 0.0f;
+
+    nn->weights[1].elements[0] = 0.7f;
+    nn->weights[1].elements[1] = -1.2f;
+    nn->biases[1].elements[0] = 0.0f;
+
+
+    Matrix dataset = createMatrix(1, 3);
+    dataset.elements[0] = 1.0f;  // feature 1
+    dataset.elements[1] = 0.0f;  // feature 2  
+    dataset.elements[2] = 1.0f;  // target
+
+    // get initial loss
+    float initial_loss;
+    computeAverageLossNN(nn, dataset, &initial_loss);
+
+    // train for a few iterations
+    for (int i = 0; i < 10; i++) {
+        NNStatus err = trainNN(nn, dataset, 1);
+        assert(err == NN_OK);
+    }
+
+    // get final loss
+    float final_loss;
+    computeAverageLossNN(nn, dataset, &final_loss);
+
+    // loss should decrease after training
+    assert(final_loss < initial_loss);
+
+    Matrix input = createMatrix(1, 2);
+    input.elements[0] = 1.0f;
+    input.elements[1] = 0.0f;
+
+    bool ok = forward(*nn, input);
+    assert(ok);
+
+    float prediction = nn->activations[nn->layerCount - 1].elements[0];
+    // prediction should be closer to target
+    assert(prediction > 0.4957f);  // initial prediction was 0.4957
+
+    freeMatrix(dataset);
+    freeMatrix(input);
+    freeNeuralNetwork(nn);
+}
+
+
 
 int main() {
     srand((unsigned int)time(NULL));
@@ -346,6 +570,10 @@ int main() {
     printf("\n\n");
     // integration tests
     testForwardPass();
+    testBackwardPass();
+    testWeightUpdate();
+    testTrainingLoop();
+
 
     printf("\nAll integration tests passed!\n");
 

@@ -1,3 +1,4 @@
+#define NN_DEBUG
 #include "NeuralNetworkDebug.h"
 #include "Matrix.h"
 #include <assert.h>
@@ -259,7 +260,7 @@ void testInitializationFunction() {
 
 
 // Internal forward/backward computations
-
+// TODO make tests independent of eachother by passing each step as an argument to the next one.
 void testForwardPass() {
     printf("Testing forward pass...\n");
 
@@ -369,7 +370,7 @@ void testBackwardPass() {
     float initial_w2_11 = nn->weights[1].elements[0];
     float initial_w2_21 = nn->weights[1].elements[1];
 
-    ok = backPropagation(*nn, target);
+    ok = backPropagation(*nn, target, input);
     assert(ok);
 
     //TODO implement known value tests for better testing
@@ -431,7 +432,7 @@ void testWeightUpdate() {
 
     bool ok = forward(*nn, input);
     assert(ok);
-    ok = backPropagation(*nn, target);
+    ok = backPropagation(*nn, target, input);
     assert(ok);
 
     // save initial values
@@ -534,7 +535,7 @@ void testTrainingLoop() {
     bool ok = forward(*nn, input);
     assert(ok);
 
-    float prediction = nn->activations[nn->layerCount - 1].elements[0];
+    float prediction = nn->activations[nn->layerCount - 2].elements[0];
     // prediction should be closer to target
     assert(prediction > 0.4957f);  // initial prediction was 0.4957
 

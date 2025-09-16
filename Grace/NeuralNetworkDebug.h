@@ -41,7 +41,7 @@ struct NeuralNetwork {
 
 // Internal forward/backward computations
 bool forward(NeuralNetwork nn, Matrix input);
-bool backPropagation(NeuralNetwork nn, Matrix expectedOutput);
+bool backPropagation(NeuralNetwork nn, Matrix expectedOutput, Matrix input);
 bool updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize);
 
 // Internal activation functions
@@ -67,7 +67,7 @@ float MSEloss(float output, float expectedOutput);
 float MSElossDerivative(float output, float expectedOutput);
 
 // Backprop helpers
-Matrix computeOutputLayerDeltas(const NeuralNetwork nn, Matrix expectedOutput);
+Matrix computeOutputLayerPartialGradients(const NeuralNetwork nn, Matrix expectedOutput);
 Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf);
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf);
@@ -90,5 +90,4 @@ bool computeMultiClassAccuracy(const NeuralNetwork nn, Matrix dataset, float* ou
 #ifdef __cplusplus
 } // end extern "C"
 #endif
-
 #endif // NN_DEBUG_H

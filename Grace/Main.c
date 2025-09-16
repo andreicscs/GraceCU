@@ -12,7 +12,7 @@
 
 int main() {
     srand((unsigned int)time(NULL));
-
+    
     char trainFilePath[] = "C:\\Users\\termi\\Desktop\\mnist_train.csv";
     char testFilePath[] = "C:\\Users\\termi\\Desktop\\mnist_test.csv";
 
@@ -46,7 +46,7 @@ int main() {
     config.lossFunction = NN_LOSS_CCE;
 
     NeuralNetwork* nn = NULL;
-
+    
     NNStatus err;
     FILE* fpIn = fopen("network_state.bin", "rb");
     if (fpIn != NULL) {
@@ -56,7 +56,6 @@ int main() {
     else {
         printf("Failed to load NN.\n");
         err = createNeuralNetwork(architecture, 4, config, &nn);
-
     }
     if (err != NN_OK) {
         printf("createNeuralNetowork: %s\n", NNStatusToString(err));
@@ -66,7 +65,7 @@ int main() {
     }
 
     int batchSize = 64;
-    int epochs = 10;
+    int epochs = 1;
     float loss;
     float accuracy;
     for (int i = 0; i < epochs; ++i) {

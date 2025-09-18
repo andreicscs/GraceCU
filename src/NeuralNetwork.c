@@ -34,8 +34,7 @@
 */
 
 // if the debug header is being used, don't define the struct twice
-#ifndef NN_STRUCT
-#define NN_STRUCT
+#ifndef NN_DEBUG
 struct NeuralNetwork {
     const unsigned int* architecture;
     unsigned int layerCount;
@@ -55,7 +54,7 @@ bool backPropagation(NeuralNetwork nn, Matrix expectedOutput, Matrix input);
 Matrix applyActivation(const NeuralNetwork nn, Matrix matrix, unsigned int iLayer);
 Matrix multipleOutputActivationFunction(Matrix mat, int af);
 float activationFunction(float x, int af);
-Matrix computeOutputLayerPartialGradients(const NeuralNetwork nn, Matrix expectedOutput);
+Matrix computeOutputLayerDeltas(const NeuralNetwork nn, Matrix expectedOutput);
 Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf);
 float AFDerivative(float x, int af);
@@ -87,7 +86,12 @@ NNStatus allocateNNMatricesArrays(NeuralNetwork *nn);
 NNStatus validateNNSettings(const NeuralNetwork *nn);
 
 
-
+/*
+* matrices are allocatoted and initialized here.
+* matrices[0] rapresent the first hidden layer, matrices[layerCount-1] rapresent the output layer.
+* each column in a layer rapresents a neuron.
+* 
+*/
 NNStatus createNeuralNetwork(const unsigned int *architecture, const unsigned int layerCount, NNConfig config, NeuralNetwork **nnP) {
     NeuralNetwork *nn = (NeuralNetwork*) malloc(sizeof(NeuralNetwork));
     if (nn == NN_invalidP) return NN_ERROR_MEMORY_ALLOCATION;
@@ -234,7 +238,10 @@ NNStatus freeNeuralNetwork(NeuralNetwork *nn) {
     return NN_OK;
 }
 
-
+/*
+* slow mini batches implementation is used to improve code clarity and maintainability
+* would need to rewrite forward/backPropagation to take multiple samples at once.
+*/
 NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize) {
     if (nn == NN_invalidP) return NN_ERROR_INVALID_ARGUMENT;
     if ((trainingData.cols- nn->numOutputs)!=nn->architecture[0]) return NN_ERROR_INVALID_ARGUMENT;
@@ -265,7 +272,7 @@ NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize)
         freeMatrix(expected);
 
         if (i == trainCount - 1) { // if traincount is not a multiple of batchsize.
-            if (!updateWeightsAndBiases(*nn, trainCount-1%batchSize))return NN_ERROR_MEMORY_ALLOCATION;
+            if (!updateWeightsAndBiases(*nn, ((trainCount-1)%batchSize)+1))return NN_ERROR_MEMORY_ALLOCATION;
         }else if ((i + 1) % batchSize == 0) {
             if (!updateWeightsAndBiases(*nn, batchSize))return NN_ERROR_MEMORY_ALLOCATION;
         }
@@ -275,7 +282,7 @@ NNStatus trainNN(NeuralNetwork *nn, Matrix trainingData, unsigned int batchSize)
 }
 
 bool forward(NeuralNetwork nn, Matrix input) {    
-    // first iteration outside of loop to initialize the matrices with the input.
+    // first iteration outside of loop to initialize algorithm with the input.
 
     // if the matrix is allocated it gets freed, it will be replaced later.
     if (nn.activations[0].elements != MATRIX_invalidP) {
@@ -331,74 +338,134 @@ bool forward(NeuralNetwork nn, Matrix input) {
     return true;
 }
 
-bool backPropagation(NeuralNetwork nn, Matrix expectedOutput, Matrix input) {
-    Matrix partialGradients = computeOutputLayerPartialGradients(nn, expectedOutput);
-    if (partialGradients.elements == MATRIX_invalidP) return false;
 
-    // starting from output layer
-	for (int i = nn.layerCount - 1; i >= 0; --i) { // from output layer to first hidden layer
+/*
+    Backpropagation gradient formulas:
+
+    ∂L/∂W[l] = (a[l-1])^T · δ[l]
+    ∂L/∂b[l] = δ[l]
+
+    Explanation:
+
+    Chain rule definition of δ:
+        δ[l] = ∂L/∂z[l] = (∂L/∂a[l]) ⊙ af'(z[l])
+        - The loss depends on activations a[l] = af(z[l])
+        - So we must include the derivative of the activation af'(z[l])
+
+       **  Why element-wise multiplication?
+            Because z[l] is a vector, and each activation af(z[l]_j)
+                depends only on its own pre-activation z[l]_j, not on others.
+        
+        How is (∂L/∂a[l]) calculated?
+            - For the output layer, it is computed directly from the loss function.
+            - For hidden layers, it is computed from the next layer's δ[l+1] and weights W[l+1]:
+			  ∂L/∂a[l] = δ[l+1] · W[l+1]^T (δ[l+1] already includes the activation derivative at layer l+1).
+
+            ** why transpose W[l+1]?
+                - Each neuron in layer l affects all neurons in layer l+1.
+                - The derivative of the loss w.r.t. a[l]_j sums contributions from all neurons in layer l+1.
+				- The transpose ensures that when multiplying δ[l+1] by W[l+1]^T, 
+                    each neuron in layer l receives the weighted sum of errors from all neurons it feeds into in layer l+1
+
+    1) Weight gradient:
+        ∂L/∂W[l] = (a[l-1])^T · δ[l]
+        ** Why?:
+            ∂L/∂W[l] = ∂L/∂z[l] · ∂z[l]/∂W[l]
+                        = δ[l] · (a[l-1])^T
+
+	    ** Why is activations transposed?:
+		    - Each weight connects one input neuron (from layer l-1) to one output neuron (in layer l), 
+                so the gradient for a weight must combine:
+                    (error of the output neuron) × (activation of the input neuron).
+				To form all pairwise combinations (each output error × each input activation) 
+                we need an outer product: δ[l] × (a[l-1])^T
+
+    2) Bias gradient:
+        ∂L/∂b[l] = δ[l]
+        Because ∂z[l]/∂b[l] = 1.
+        ** Why?:
+            - Each bias b[l]_j affects only its own pre-activation z[l]_j. 
+                so the derivative of z[l]_j w.r.t. b[l]_j is 1, and 0 for others.
+
+
+    3) Propagation backwards:
+        To send the error to the previous layer:
+        δ[l-1] = δ[l] · W[l]^T ⊙ af'(z[l-1])
+
+    Where:
+    - L = Loss function
+    - W[l] = weight matrix at layer l
+    - b[l] = bias vector at layer l
+    - a[l-1] = activations (outputs) from previous layer (l-1)
+    - z[l] = pre-activation inputs = W[l]·a[l-1] + b[l]
+    - af = activation function
+    - af'(z[l]) = derivative of the activation function
+    - δ[l] = "partialDerivative or error" at layer l, i.e. how much this layer contributed to the loss
+	- ⊙ = element-wise multiplication
+*/
+bool backPropagation(NeuralNetwork nn, Matrix expectedOutput, Matrix input) {
+    //compute output partial derivatives which uses output delta.
+    Matrix partialDerivatives = computeOutputLayerDeltas(nn, expectedOutput);
+    if (partialDerivatives.elements == MATRIX_invalidP) return false;
+
+	// starting from the output layer, apply chainrule to compute gradients for each layer and partial gradients for the previous layer.
+	for (int i = nn.layerCount - 1; i >= 0; --i) {
         Matrix transposedActivations;
         if (i == 0) {
-            transposedActivations = transposeMatrix(input);
+			transposedActivations = transposeMatrix(input); // use input instead of nn.activations[-1] for the first hidden layer
         }
         else {
-            transposedActivations = transposeMatrix(nn.activations[i - 1]);
+            transposedActivations = transposeMatrix(nn.activations[i - 1]); // to match dimensions, transpose a[l-1] so the multiplication gives a matrix shaped(input_dim × output_dim), same as W[l].
         }
-
         if (transposedActivations.elements == MATRIX_invalidP) {
-            freeMatrix(partialGradients);
+            freeMatrix(partialDerivatives);
             return false;
         }
-        Matrix weightGradients = multiplyMatrix(transposedActivations, partialGradients);  // compute weight gradients for each layer, Weight gradients = activations[i-1]^T * partialGradients
+
+        Matrix weightGradients = multiplyMatrix(transposedActivations, partialDerivatives);  // compute weight gradients for each layer, Weight gradients = activations[i-1]^T * partialDerivatives (∂L/∂W[l] = (a[l-1])^T · δ[l])
         if (weightGradients.elements == MATRIX_invalidP) {
-            freeMatrix(partialGradients);
+            freeMatrix(partialDerivatives);
             freeMatrix(transposedActivations);
             return false;
         }
 
-        addMatrixInPlace(nn.weightsGradients[i], weightGradients);
+		addMatrixInPlace(nn.weightsGradients[i], weightGradients); // sum the gradients over the batch
 
         // free intermediate matrices
         freeMatrix(transposedActivations);
         freeMatrix(weightGradients);
 
         // compute bias gradients
-        Matrix biasGradients = copyMatrix(partialGradients);
-        if (biasGradients.elements == MATRIX_invalidP) {
-            freeMatrix(partialGradients);
-            return false;
-        }
-
-        addMatrixInPlace(nn.biasesGradients[i], biasGradients);
-        freeMatrix(biasGradients);
+        addMatrixInPlace(nn.biasesGradients[i], partialDerivatives); // Bias gradients = partialGradient[i] (∂L/∂b[l] = δ[l]), sum the gradients over the batch
         
-        // compute partialGradients for previous layer (if not input layer)
-        // delta[l] = (W[l+1]^T * delta[l+1]) ⊙ af'(z[l])
+        // compute partialDerivatives for previous layer (if not input layer)
+        // δ[i-1] = δ[i] * W[i]^T ⊙ f'(z[i-1])
+        // so partialDerivatives[l-1] = W[l]^T * partialDerivatives[l] ⊙ af'(z[l-1])
         if (i > 0) {
             Matrix transposedWeights = transposeMatrix(nn.weights[i]);
             if (transposedWeights.elements == MATRIX_invalidP) {
-                freeMatrix(partialGradients);
+                freeMatrix(partialDerivatives);
                 return false;
             }
 
-            Matrix inputGradients = multiplyMatrix(partialGradients, transposedWeights);	// input gradients = partialGradients * weights[i]^T
+            Matrix inputGradients = multiplyMatrix(partialDerivatives, transposedWeights);	// input gradients = partialDerivatives * weights[i]^T (δ[i] * W[i]^T)
             if (inputGradients.elements == MATRIX_invalidP) {
-                freeMatrix(partialGradients);
+                freeMatrix(partialDerivatives);
                 freeMatrix(transposedWeights);
                 return false;
             }
 
             freeMatrix(transposedWeights);
-            freeMatrix(partialGradients);
+            freeMatrix(partialDerivatives);
 
-            Matrix activationDerivative = computeActivationDerivative(nn.outputs[i - 1], nn.config.hiddenLayersAF);	// activation derivative = f'(outputs[i-1])
+            Matrix activationDerivative = computeActivationDerivative(nn.outputs[i - 1], nn.config.hiddenLayersAF);	// activation derivative = af'(outputs[i-1]) (f'(z[i-1]))
             if (activationDerivative.elements == MATRIX_invalidP) {
                 freeMatrix(inputGradients);
                 return false;
             }
 
-            partialGradients = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// partialGradients for previous layer = inputGradients ⊙ activationDerivative
-            if (partialGradients.elements == MATRIX_invalidP) {
+            partialDerivatives = multiplyMatrixElementWise(inputGradients, activationDerivative); 	// partialDerivatives for previous layer = inputGradients ⊙ activationDerivative (δ[i] * W[i]^T ⊙ f'(z[i-1]))
+            if (partialDerivatives.elements == MATRIX_invalidP) {
                 freeMatrix(inputGradients);
                 freeMatrix(activationDerivative);
                 return false;
@@ -409,7 +476,7 @@ bool backPropagation(NeuralNetwork nn, Matrix expectedOutput, Matrix input) {
             freeMatrix(activationDerivative);
         }
     }
-    freeMatrix(partialGradients);
+    freeMatrix(partialDerivatives);
     return true;
 }
 
@@ -434,13 +501,13 @@ bool updateWeightsAndBiases(NeuralNetwork nn, unsigned int batchSize) {
     return true;
 }
 
-Matrix computeOutputLayerPartialGradients(const NeuralNetwork nn, Matrix expectedOutput) {
+Matrix computeOutputLayerDeltas(const NeuralNetwork nn, Matrix expectedOutput) {
     Matrix predicted = nn.activations[nn.layerCount - 1];
     Matrix rawPredicted = nn.outputs[nn.layerCount - 1];
-    Matrix partialGradients;
+    Matrix partialDerivatives;
     if (nn.numOutputs > 1) { // multi output
-        partialGradients = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.config.lossFunction); // because the af derivative and the loss derivative simplify each other using NN_LOSS_CCE and NN_ACTIVATION_SOFTMAX only delta is needed, needs to be revisited once other loss functions will be implemented
-        if (partialGradients.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
+        partialDerivatives = computeMultipleOutputLossDerivativeMatrix(predicted, expectedOutput, nn.config.lossFunction); // because the af derivative and the loss derivative simplify each other using NN_LOSS_CCE and NN_ACTIVATION_SOFTMAX only delta is needed, needs to be revisited once other loss functions will be implemented
+        if (partialDerivatives.elements == MATRIX_invalidP) return EMPTY_MATRIX ;
     }
     else { // single output
         Matrix dLoss_dY = computeLossDerivative(predicted, expectedOutput, nn.config.lossFunction); // derivative of the loss function
@@ -452,8 +519,8 @@ Matrix computeOutputLayerPartialGradients(const NeuralNetwork nn, Matrix expecte
             return EMPTY_MATRIX ;
         }
 
-        partialGradients = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // partialGradient = dLoss_dY * derivative of the activation function with respect to the non-activated output
-        if (partialGradients.elements == MATRIX_invalidP) {
+        partialDerivatives = multiplyMatrixElementWise(dLoss_dY, activationDerivative); // partialGradient = dLoss_dY * derivative of the activation function with respect to the non-activated output
+        if (partialDerivatives.elements == MATRIX_invalidP) {
             freeMatrix(dLoss_dY);
             freeMatrix(activationDerivative);
             return EMPTY_MATRIX ;
@@ -462,7 +529,7 @@ Matrix computeOutputLayerPartialGradients(const NeuralNetwork nn, Matrix expecte
         freeMatrix(dLoss_dY);
         freeMatrix(activationDerivative);
     }
-    return partialGradients;
+    return partialDerivatives;
 }
 
 Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf) {

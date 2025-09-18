@@ -32,6 +32,15 @@ bld/
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+/.vs/
+/x64/
+/Debug/
+/Release/
+/build/
+*.vcxproj.user
+*.bin
+bin/
+/bin/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

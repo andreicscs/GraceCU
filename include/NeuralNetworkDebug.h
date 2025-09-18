@@ -23,8 +23,7 @@ extern "C" {
 #include "Matrix.h"
 
 // if the debug header is being used, don't define the struct twice
-#ifndef NN_STRUCT
-#define NN_STRUCT
+#ifdef NN_DEBUG
 struct NeuralNetwork {
     const unsigned int* architecture;
     unsigned int layerCount;
@@ -67,7 +66,7 @@ float MSEloss(float output, float expectedOutput);
 float MSElossDerivative(float output, float expectedOutput);
 
 // Backprop helpers
-Matrix computeOutputLayerPartialGradients(const NeuralNetwork nn, Matrix expectedOutput);
+Matrix computeOutputLayerDeltas(const NeuralNetwork nn, Matrix expectedOutput);
 Matrix computeActivationDerivative(Matrix outputs, int af);
 Matrix computeMultipleOutputLossDerivativeMatrix(Matrix output, Matrix expectedOutput, int lf);
 Matrix computeLossDerivative(Matrix outputs, Matrix expectedOutputs, int lf);

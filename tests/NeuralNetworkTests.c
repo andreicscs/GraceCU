@@ -95,7 +95,7 @@ void testCceLossDerivative() {
     memcpy(expected.elements, data2, sizeof(data2));
 
     Matrix derivative = CCElossDerivativeMatrix(predicted, expected);
-    
+
     // derivative should be predicted - expected for softmax+CCE
     assert(fequal(derivative.elements[0], 0.1f));
     assert(fequal(derivative.elements[1], -0.3f));
@@ -267,7 +267,7 @@ void testForwardPass() {
     unsigned int arch[] = { 2, 2, 1 };
     NeuralNetwork* nn = NULL;
 
-    
+
     NNConfig config;
     createNNConfig(&config);
 
@@ -275,8 +275,8 @@ void testForwardPass() {
     config.hiddenLayersAF = NN_ACTIVATION_SIGMOID;
     config.outputLayerAF = NN_ACTIVATION_SIGMOID;
     config.weightInitializerF = NN_INITIALIZATION_HE;
-    config.lossFunction = NN_LOSS_BCE;    
-    
+    config.lossFunction = NN_LOSS_BCE;
+
     NNStatus status = createNeuralNetwork(arch, 3, config, &nn);
     assert(status == NN_OK);
 

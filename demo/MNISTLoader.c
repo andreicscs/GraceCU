@@ -1,4 +1,4 @@
-#include "Matrix.h" // Include your matrix library header
+#include "../include/Matrix.h" // Include your matrix library header
 #include <stdio.h>   // For FILE, fopen, fgets, fclose
 #include <stdlib.h>  // For strtod, malloc, calloc, free
 #include <string.h>  // For pointer manipulation (implicit)

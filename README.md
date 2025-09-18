@@ -18,6 +18,7 @@ This project started as part of the [GRACE](https://github.com/Fairswing/Grace) 
 ### 🎓 Academic Purpose  
 As the scope grew, the neural network component evolved into a standalone **academic library**. The focus is now on **clarity, modularity, and educational value** rather than raw performance. 
 ***The library is intended as a learning tool for students who want to understand how neural networks work internally, step by step.*** 
+The library includes detailed comments that explain the code’s behavior, linking each implementation to the underlying mathematical formulas and clarifying both what they do and why it works that way.
 
 ---
 

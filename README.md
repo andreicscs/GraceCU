@@ -1,18 +1,33 @@
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![C](https://img.shields.io/badge/language-C-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/status-WIP-yellow.svg)]()
+
+## 📑 Table of Contents
+- [Background & Evolution](#-background--evolution)
+- [Project Structure](#-project-structure)
+- [Matrix Library](#-matrix-library-matrixh)
+- [Neural Network Library](#-neural-network-library-neuralnetworkh)
+- [Documentation](#-documentation)
+- [Future Plans](#-future-plans)
+- [Feedback](#-feedback)
+
 # GraceCU  
 ## 📘 Background & Evolution  
 This project started as part of the [GRACE](https://github.com/Fairswing/Grace) learning initiative, which was designed to help students understand the fundamentals of artificial intelligence by implementing neural networks from scratch using backpropagation and gradient descent.  
 
-As the scope grew, the neural network component evolved into a standalone **academic library**. The focus is now on **clarity, modularity, and educational value** rather than raw performance. The library is intended as a learning tool for students who want to understand how neural networks work internally, step by step.  
+### 🎓 Academic Purpose  
+As the scope grew, the neural network component evolved into a standalone **academic library**. The focus is now on **clarity, modularity, and educational value** rather than raw performance. 
+***The library is intended as a learning tool for students who want to understand how neural networks work internally, step by step.*** 
 
 ---
 
 ## 🧩 Project Structure  
 The project currently consists of two main libraries:  
 
-- **`Matrix.h`** → A custom matrix library implementing core operations.  
+- **`Matrix.h`** → A custom matrix library implementing core operations.
 - **`NeuralNetwork.h`** → A neural network library built on top of `Matrix.h`.  
-
-A simple `main` demo and an **MNIST loader** are included to showcase training on the MNIST digit recognition dataset.  
+### 📊 MNIST Demo  
+A demo application is provided to train and test a simple neural network on the **MNIST digit recognition dataset**, demonstrating the use of `Matrix.h` and `NeuralNetwork.h` in practice.  
 
 ---
 
@@ -36,12 +51,13 @@ A simple `main` demo and an **MNIST loader** are included to showcase training o
 ## 🧠 Neural Network Library (`NeuralNetwork.h`)  
 
 ### Features  
-- Customizable network architecture  
+- Dynamic network architecture  
 - Activation functions: Sigmoid, ReLU, Softmax  
 - Loss functions: CCE, MSE, BCE  
 - Training with batch processing  
 - Model persistence (save/load network states)  
-- Accuracy and loss computation  
+- Accuracy and loss computation
+- Nural network prediction (to use the trained neural network)
 
 ### TODO  
 - Expand test coverage (known-answer tests or test helpers)  
@@ -52,27 +68,19 @@ A simple `main` demo and an **MNIST loader** are included to showcase training o
 
 ---
 
-## 🎓 Academic Purpose  
-Unlike production frameworks such as TensorFlow or PyTorch, **GraceCU is not optimized for maximum performance**. Instead, it prioritizes:  
-- Clear code structure  
-- Readability and learning value  
-- Step-by-step understanding of matrix math and backpropagation  
-- Serving as a teaching/learning tool in academic contexts  
-
----
-
-## 📊 MNIST Demo  
-A demo application is provided to train and test a simple neural network on the **MNIST digit recognition dataset**, demonstrating the use of `Matrix.h` and `NeuralNetwork.h` in practice.  
+## 📘 Documentation
+For a full API reference and usage details, check out the [📖 Documentation](./docs/API.md).
 
 ---
 
 ## 🚀 Future Plans  
 - Expand the library with additional layers and functions  
 - Provide exercises/tutorials for students  
-- Improve ease of use with helper utilities  
+- Improve ease of use with data loading and data manipulation functions
 - (Optional) Revisit CUDA or multithreading if performance becomes a focus  
+
+## 🤝 Feedback  
+This project is still under development. Contributions, suggestions, or feedback from students and educators are very welcome! 
 
 ---
 
-## 🤝 Feedback  
-This project is still under development. Contributions, suggestions, or feedback from students and educators are very welcome!  

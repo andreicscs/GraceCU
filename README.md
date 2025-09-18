@@ -69,7 +69,7 @@ A demo application is provided to train and test a simple neural network on the 
 ---
 
 ## 📘 Documentation
-For a full API reference and usage details, check out the [📖 Documentation](./API.md).
+For a full API reference and usage details, check out the [📖 Documentation](./docs/API.md).
 
 ---
 

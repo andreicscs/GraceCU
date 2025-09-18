@@ -85,8 +85,6 @@ This project is still under development. Contributions, suggestions, or feedback
 ---
 
 
-
-GraceCU - Neural Network Library
 Copyright (C) 2025 Termine Andrea
 
 This program is free software: you can redistribute it and/or modify it
